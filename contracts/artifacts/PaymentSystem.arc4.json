@@ -1,0 +1,288 @@
+{
+  "name": "PaymentSystem",
+  "desc": "",
+  "methods": [
+    {
+      "name": "deploy",
+      "args": [],
+      "desc": "Deploy the smart contract, setting the transaction sender as the admin",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "update",
+      "args": [],
+      "desc": "Allows the admin to update the smart contract",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "destroy",
+      "args": [],
+      "desc": "Destroy the smart contract, sending all Algo to the admin account. This can only be done if there are no active cards",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "setAdmin",
+      "args": [
+        {
+          "name": "admin",
+          "type": "address",
+          "desc": "Address to be made admin"
+        }
+      ],
+      "desc": "Allows the current admin to set a new admin",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "setWithdrawalRounds",
+      "args": [
+        {
+          "name": "rounds",
+          "type": "uint64",
+          "desc": "New number of rounds to wait"
+        }
+      ],
+      "desc": "Set the number of rounds a withdrawal request must wait until being withdrawn",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "cardCreate",
+      "args": [
+        {
+          "name": "mbr",
+          "type": "pay",
+          "desc": ""
+        },
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": ""
+        },
+        {
+          "name": "owner",
+          "type": "address",
+          "desc": "Address to have control over asset withdrawals"
+        }
+      ],
+      "desc": "Create account. This generates a brand new account and funds the minimum balance requirement",
+      "returns": {
+        "type": "address",
+        "desc": "Newly generated account used by their card"
+      }
+    },
+    {
+      "name": "cardClose",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "Partner name"
+        },
+        {
+          "name": "owner",
+          "type": "address",
+          "desc": "Address which has control over asset withdrawals"
+        },
+        {
+          "name": "card",
+          "type": "account",
+          "desc": "Account to close"
+        }
+      ],
+      "desc": "Close account. This permanently removes the rekey and deletes the account from the ledger",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "cardAddAsset",
+      "args": [
+        {
+          "name": "mbr",
+          "type": "pay",
+          "desc": ""
+        },
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "Partner name"
+        },
+        {
+          "name": "card",
+          "type": "account",
+          "desc": "Account to add asset to"
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "Asset to add"
+        }
+      ],
+      "desc": "Allows the owner (or admin) to OptIn to an asset, increasing the minimum balance requirement of the account",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "cardRemoveAsset",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "Partner name"
+        },
+        {
+          "name": "card",
+          "type": "account",
+          "desc": "Account to remove asset from"
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "Asset to remove"
+        }
+      ],
+      "desc": "Allows the owner (or admin) to CloseOut of an asset, reducing the minimum balance requirement of the account",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "cardDebit",
+      "args": [
+        {
+          "name": "card",
+          "type": "account",
+          "desc": "Account to debit from"
+        },
+        {
+          "name": "recipient",
+          "type": "account",
+          "desc": "Receiver of the assets being debited"
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "Asset being debited"
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount to debit"
+        }
+      ],
+      "desc": "Allows the admin to send an amount of assets from the account",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "cardWithdrawalRequest",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "Partner name"
+        },
+        {
+          "name": "card",
+          "type": "account",
+          "desc": "Account to withdraw from"
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "Asset being withdrawn"
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount to withdraw"
+        }
+      ],
+      "desc": "Allows the owner to send an amount of assets from the account",
+      "returns": {
+        "type": "byte[32]",
+        "desc": "Withdrawal hash used for completing or cancelling the withdrawal"
+      }
+    },
+    {
+      "name": "cardWithdrawalCancel",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "Partner name"
+        },
+        {
+          "name": "card",
+          "type": "account",
+          "desc": "Account to withdraw from"
+        },
+        {
+          "name": "withdrawal_hash",
+          "type": "byte[32]",
+          "desc": "Hash of the withdrawal request"
+        }
+      ],
+      "desc": "Allows the owner (or admin) to cancel a withdrawal request",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "cardWithdraw",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "Partner name"
+        },
+        {
+          "name": "card",
+          "type": "account",
+          "desc": "Account to withdraw from"
+        },
+        {
+          "name": "recipient",
+          "type": "account",
+          "desc": "Receiver of the assets being withdrawn"
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "Asset being withdrawn"
+        },
+        {
+          "name": "withdrawal_hash",
+          "type": "byte[32]",
+          "desc": "Hash of the withdrawal request"
+        }
+      ],
+      "desc": "Allows the owner to send an amount of assets from the account",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    }
+  ]
+}
