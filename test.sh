@@ -48,7 +48,6 @@ ${GOAL} clerk send \
 	-t ${APP_ADDR} \
 	-a 140900 \
 	-o mbr.txn
-#-a 128100 \
 CARD_ADDR=$(${GOAL} app method \
 	-f ${ACCT1} \
 	--app-id ${APP_ID} \
@@ -61,7 +60,7 @@ CARD_ADDR=$(${GOAL} app method \
 	| grep 'method cardCreate(pay,string,address)address succeeded with output' \
 	| awk '{print $6}' \
 	| tr -d '[\n\r"]')
-#--box "addr:${ACCT2}" \
+rm mbr.txn
 
 # Create FakeUSDC ASA for testing
 FUSDC=$(${GOAL} asset create \
@@ -101,6 +100,7 @@ ${GOAL} app method \
 	--arg ${CARD_ADDR} \
 	--arg ${FUSDC} \
 	--fee 3000
+rm mbr.txn
 
 # Deposit 10 FUSDC from owner to card
 ${GOAL} asset send \
