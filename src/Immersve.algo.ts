@@ -1,4 +1,5 @@
-import { Contract } from '@algorandfoundation/tealscript';
+//import { Contract } from '@algorandfoundation/tealscript';
+import { Contract } from '../../../../GitHub/algorandfoundation/TEALScript/src/lib/index';
 
 // Key to use per partner and owner (user)
 type PartnerAndOwner = {
@@ -15,14 +16,8 @@ type WithdrawalRequest = {
 };
 
 // Cost of storing (partner + owner) + card in a box
-const box_mbr: uint64 = (2500) + (400 * (64 + 32));
-
-// Cost of new card
-const card_mbr: uint64 = globals.minBalance + box_mbr;
-
-// Cost of added an asset to the card account
-// TODO: Replace with assetOptInMinBalance (V10)
-const asset_mbr: uint64 = 100000;
+//const box_mbr = (2500) + (400 * (64 + 32));
+const box_mbr = 40900;
 
 class Card extends Contract {
     /**
@@ -41,7 +36,7 @@ class Card extends Contract {
     }
 }
 
-class PaymentSystem extends Contract {
+class Immersve extends Contract {
     // Admin
     admin = GlobalStateKey<Address>({ key: 'a' });
 
@@ -53,7 +48,7 @@ class PaymentSystem extends Contract {
     withdrawal_wait_time = GlobalStateKey<uint64>({ key: 'w' });
 
     // Withdrawal requests
-    withdrawals = LocalStateMap<byte[32], WithdrawalRequest>({ maxKeys: 15});
+    withdrawals = LocalStateMap<bytes32, WithdrawalRequest>({ maxKeys: 15});
     withdrawal_nonce = LocalStateKey<uint64>({ key: 'n' });
 
     /**
@@ -134,13 +129,13 @@ class PaymentSystem extends Contract {
     cardCreate(mbr: PayTxn, partner: string, owner: Address): Address {
         assert(this.is_admin());
 
-        assert(mbr.amount === card_mbr);
+        assert(mbr.amount === globals.minBalance + box_mbr);
         assert(mbr.receiver === this.app.address);
 
         // Create a new account
-        const card_addr: Address = sendMethodCall<[], Address>({
+        const card_addr = sendMethodCall<[], Address>({
             name: "new",
-            onCompletion: "DeleteApplication",
+            onCompletion: OnCompletion.DeleteApplication,
             approvalProgram: Card.approvalProgram(),
             clearStateProgram: Card.clearProgram(),
         });
@@ -198,13 +193,12 @@ class PaymentSystem extends Contract {
     cardAddAsset(mbr: PayTxn, partner: string, card: Account, asset: Asset): void {
         assert(this.is_admin() || this.is_owner(partner, card));
 
-        assert(mbr.amount === asset_mbr);
+        assert(mbr.amount === globals.assetOptInMinBalance);
         assert(mbr.receiver === this.app.address);
 
-        // TODO: Replace minBalance with assetOptInMinBalance (V10)
         sendPayment({
             receiver: card,
-            amount: globals.minBalance,
+            amount: globals.assetOptInMinBalance,
         });
 
         sendAssetTransfer({
@@ -232,11 +226,10 @@ class PaymentSystem extends Contract {
             assetAmount: 0,
         });
 
-        // TODO: Replace minBalance with assetOptInMinBalance (V10)
         sendPayment({
             sender: card,
             receiver: this.txn.sender,
-            amount: globals.minBalance,
+            amount: globals.assetOptInMinBalance,
         });
     }
 
@@ -268,7 +261,7 @@ class PaymentSystem extends Contract {
      */
     @allow.call("NoOp")
     @allow.call("OptIn")
-    cardWithdrawalRequest(partner: string, card: Account, asset: Asset, amount: uint64): byte[32] {
+    cardWithdrawalRequest(partner: string, card: Account, asset: Asset, amount: uint64): bytes32 {
         assert(this.is_owner(partner, card));
 
         const withdrawal: WithdrawalRequest = {
@@ -278,7 +271,7 @@ class PaymentSystem extends Contract {
             amount: amount,
         };
         this.withdrawal_nonce(this.txn.sender).value = this.withdrawal_nonce(this.txn.sender).value + 1;
-        const withdrawal_hash: byte[32] = sha256(withdrawal as unknown as bytes);
+        const withdrawal_hash = sha256(rawBytes(withdrawal));
 
         this.withdrawals(
             this.txn.sender,
@@ -294,7 +287,7 @@ class PaymentSystem extends Contract {
      * @param card Account to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
-    cardWithdrawalCancel(partner: string, card: Account, withdrawal_hash: byte[32]): void {
+    cardWithdrawalCancel(partner: string, card: Account, withdrawal_hash: bytes32): void {
         assert(this.is_admin() || this.is_owner(partner, card));
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
@@ -310,10 +303,10 @@ class PaymentSystem extends Contract {
      */
     @allow.call("NoOp")
     @allow.call("CloseOut")
-    cardWithdraw(partner: string, card: Account, recipient: Account, asset: Asset, withdrawal_hash: byte[32]): void {
+    cardWithdraw(partner: string, card: Account, recipient: Account, asset: Asset, withdrawal_hash: bytes32): void {
         assert(this.is_owner(partner, card));
 
-        const withdrawal: WithdrawalRequest = this.withdrawals(this.txn.sender, withdrawal_hash).value as WithdrawalRequest;
+        const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
         assert(globals.round >= withdrawal.round);
 

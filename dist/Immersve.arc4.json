@@ -1,36 +1,34 @@
 {
-  "name": "PaymentSystem",
+  "name": "Immersve",
   "desc": "",
   "methods": [
     {
       "name": "deploy",
-      "args": [],
       "desc": "Deploy the smart contract, setting the transaction sender as the admin",
+      "args": [],
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "update",
-      "args": [],
       "desc": "Allows the admin to update the smart contract",
+      "args": [],
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "destroy",
-      "args": [],
       "desc": "Destroy the smart contract, sending all Algo to the admin account. This can only be done if there are no active cards",
+      "args": [],
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "setAdmin",
+      "desc": "Allows the current admin to set a new admin",
       "args": [
         {
           "name": "admin",
@@ -38,14 +36,13 @@
           "desc": "Address to be made admin"
         }
       ],
-      "desc": "Allows the current admin to set a new admin",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "setWithdrawalRounds",
+      "desc": "Set the number of rounds a withdrawal request must wait until being withdrawn",
       "args": [
         {
           "name": "rounds",
@@ -53,24 +50,21 @@
           "desc": "New number of rounds to wait"
         }
       ],
-      "desc": "Set the number of rounds a withdrawal request must wait until being withdrawn",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "cardCreate",
+      "desc": "Create account. This generates a brand new account and funds the minimum balance requirement",
       "args": [
         {
           "name": "mbr",
-          "type": "pay",
-          "desc": ""
+          "type": "pay"
         },
         {
           "name": "partner",
-          "type": "string",
-          "desc": ""
+          "type": "string"
         },
         {
           "name": "owner",
@@ -78,7 +72,6 @@
           "desc": "Address to have control over asset withdrawals"
         }
       ],
-      "desc": "Create account. This generates a brand new account and funds the minimum balance requirement",
       "returns": {
         "type": "address",
         "desc": "Newly generated account used by their card"
@@ -86,6 +79,7 @@
     },
     {
       "name": "cardClose",
+      "desc": "Close account. This permanently removes the rekey and deletes the account from the ledger",
       "args": [
         {
           "name": "partner",
@@ -103,19 +97,17 @@
           "desc": "Account to close"
         }
       ],
-      "desc": "Close account. This permanently removes the rekey and deletes the account from the ledger",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "cardAddAsset",
+      "desc": "Allows the owner (or admin) to OptIn to an asset, increasing the minimum balance requirement of the account",
       "args": [
         {
           "name": "mbr",
-          "type": "pay",
-          "desc": ""
+          "type": "pay"
         },
         {
           "name": "partner",
@@ -133,14 +125,13 @@
           "desc": "Asset to add"
         }
       ],
-      "desc": "Allows the owner (or admin) to OptIn to an asset, increasing the minimum balance requirement of the account",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "cardRemoveAsset",
+      "desc": "Allows the owner (or admin) to CloseOut of an asset, reducing the minimum balance requirement of the account",
       "args": [
         {
           "name": "partner",
@@ -158,14 +149,13 @@
           "desc": "Asset to remove"
         }
       ],
-      "desc": "Allows the owner (or admin) to CloseOut of an asset, reducing the minimum balance requirement of the account",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "cardDebit",
+      "desc": "Allows the admin to send an amount of assets from the account",
       "args": [
         {
           "name": "card",
@@ -188,14 +178,13 @@
           "desc": "Amount to debit"
         }
       ],
-      "desc": "Allows the admin to send an amount of assets from the account",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "cardWithdrawalRequest",
+      "desc": "Allows the owner to send an amount of assets from the account",
       "args": [
         {
           "name": "partner",
@@ -218,7 +207,6 @@
           "desc": "Amount to withdraw"
         }
       ],
-      "desc": "Allows the owner to send an amount of assets from the account",
       "returns": {
         "type": "byte[32]",
         "desc": "Withdrawal hash used for completing or cancelling the withdrawal"
@@ -226,6 +214,7 @@
     },
     {
       "name": "cardWithdrawalCancel",
+      "desc": "Allows the owner (or admin) to cancel a withdrawal request",
       "args": [
         {
           "name": "partner",
@@ -243,14 +232,13 @@
           "desc": "Hash of the withdrawal request"
         }
       ],
-      "desc": "Allows the owner (or admin) to cancel a withdrawal request",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     },
     {
       "name": "cardWithdraw",
+      "desc": "Allows the owner to send an amount of assets from the account",
       "args": [
         {
           "name": "partner",
@@ -278,10 +266,8 @@
           "desc": "Hash of the withdrawal request"
         }
       ],
-      "desc": "Allows the owner to send an amount of assets from the account",
       "returns": {
-        "type": "void",
-        "desc": ""
+        "type": "void"
       }
     }
   ]
