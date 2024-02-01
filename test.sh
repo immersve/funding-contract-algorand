@@ -16,8 +16,8 @@ APP_ID=$(${GOAL} app method \
 	--create \
 	-f ${ACCT1} \
 	--method "deploy()void" \
-	--approval-prog contracts/artifacts/PaymentSystem.approval.teal \
-	--clear-prog contracts/artifacts/PaymentSystem.clear.teal \
+	--approval-prog dist/Immersve.approval.teal \
+	--clear-prog dist/Immersve.clear.teal \
 	--global-byteslices 1 \
 	--global-ints 2 \
 	--local-byteslices 15 \
