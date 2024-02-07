@@ -1,5 +1,4 @@
-//import { Contract } from '@algorandfoundation/tealscript';
-import { Contract } from '../../../../GitHub/algorandfoundation/TEALScript/src/lib/index';
+import { Contract } from '@algorandfoundation/tealscript';
 
 // Key to use per partner and owner (user)
 type PartnerAndOwner = {

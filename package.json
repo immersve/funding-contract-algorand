@@ -9,6 +9,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@algorandfoundation/tealscript": "^0.79.2"
+    "@algorandfoundation/tealscript": "^0.82.1"
   }
 }
