@@ -23,8 +23,6 @@ To run, make sure you have `goal` set locally for sandbox. Do not accidentally r
  Allows the admin to update the smart contract
 ### destroy()void
  Destroy the smart contract, sending all Algo to the admin account. This can only be done if there are no active cards
-### setAdmin(address)void
- Allows the current admin to set a new admin
 ### setWithdrawalRounds(uint64)void
  Set the number of rounds a withdrawal request must wait until being withdrawn
 ### cardCreate(pay,string,address)address

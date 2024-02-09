@@ -40,7 +40,7 @@ abi_route_new:
 new:
 	proto 0 1
 
-	// src/Immersve.algo.ts:29
+	// src/Immersve.algo.ts:52
 	// sendPayment({
 	//             receiver: this.app.address,
 	//             amount: 0,
@@ -50,17 +50,17 @@ new:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:30
+	// src/Immersve.algo.ts:53
 	// receiver: this.app.address
 	global CurrentApplicationAddress
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:31
+	// src/Immersve.algo.ts:54
 	// amount: 0
 	int 0
 	itxn_field Amount
 
-	// src/Immersve.algo.ts:32
+	// src/Immersve.algo.ts:55
 	// rekeyTo: globals.callerApplicationAddress
 	global CallerApplicationAddress
 	itxn_field RekeyTo
@@ -72,7 +72,7 @@ new:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:35
+	// src/Immersve.algo.ts:58
 	// return this.app.address;
 	global CurrentApplicationAddress
 	retsub

@@ -85,6 +85,21 @@ ${GOAL} asset send \
 	-t ${ACCT2} \
 	-a 100000000
 
+# Allow FakeUSDC as an asset which can be used
+${GOAL} clerk send \
+	-f ${ACCT1} \
+	-t ${APP_ADDR} \
+	-a 100000 \
+	-o mbr.txn
+${GOAL} app method \
+	--app-id ${APP_ID} \
+	-f ${ACCT1} \
+	--method "allowAsset(pay,asset)void" \
+	--arg mbr.txn \
+	--arg ${FUSDC} \
+	--fee 2000
+rm mbr.txn
+
 # Add FakeUSDC to card account
 ${GOAL} clerk send \
 	-f ${ACCT1} \
@@ -94,11 +109,12 @@ ${GOAL} clerk send \
 ${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT1} \
-	--method "cardAddAsset(pay,string,account,asset)void" \
+	--method "cardAddAsset(pay,string,address,asset)void" \
 	--arg mbr.txn \
 	--arg '"Master Card"' \
-	--arg ${CARD_ADDR} \
+	--arg \"${CARD_ADDR}\" \
 	--arg ${FUSDC} \
+	--app-account ${CARD_ADDR} \
 	--fee 3000
 rm mbr.txn
 
@@ -113,26 +129,26 @@ ${GOAL} asset send \
 ${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT1} \
-	--method "cardDebit(account,account,asset,uint64)void" \
-	--arg ${CARD_ADDR} \
-	--arg ${ACCT1} \
+	--method "cardDebit(address,asset,uint64)void" \
+	--arg \"${CARD_ADDR}\" \
 	--arg ${FUSDC} \
 	--arg 5000000 \
+	--app-account ${CARD_ADDR} \
 	--fee 2000
 
 # Owner creates withdraw request for 1 FUSDC
 WITHDRAWAL_HASH1=$(${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT2} \
-	--method "cardWithdrawalRequest(string,account,asset,uint64)byte[32]" \
+	--method "cardWithdrawalRequest(string,address,asset,uint64)byte[32]" \
 	--on-completion "OptIn" \
 	--arg '"Master Card"' \
-	--arg ${CARD_ADDR} \
+	--arg \"${CARD_ADDR}\" \
 	--arg ${FUSDC} \
 	--arg 1000000 \
 	--box "b64:ACILghwHcB9gaGvkDg56T+n/iWuorpF01uMYR4jgQ6PbNQALTWFzdGVyIENhcmQ=" \
 	--fee 2000 \
-	| grep 'method cardWithdrawalRequest(string,account,asset,uint64)byte\[32\] succeeded with output' \
+	| grep 'method cardWithdrawalRequest(string,address,asset,uint64)byte\[32\] succeeded with output' \
 	| awk '{print $6}' \
 	| tr -d '[\n\r"]')
 
@@ -140,14 +156,14 @@ WITHDRAWAL_HASH1=$(${GOAL} app method \
 WITHDRAWAL_HASH2=$(${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT2} \
-	--method "cardWithdrawalRequest(string,account,asset,uint64)byte[32]" \
+	--method "cardWithdrawalRequest(string,address,asset,uint64)byte[32]" \
 	--arg '"Master Card"' \
-	--arg ${CARD_ADDR} \
+	--arg \"${CARD_ADDR}\" \
 	--arg ${FUSDC} \
 	--arg 4000000 \
 	--box "b64:ACILghwHcB9gaGvkDg56T+n/iWuorpF01uMYR4jgQ6PbNQALTWFzdGVyIENhcmQ=" \
 	--fee 2000 \
-	| grep 'method cardWithdrawalRequest(string,account,asset,uint64)byte\[32\] succeeded with output' \
+	| grep 'method cardWithdrawalRequest(string,address,asset,uint64)byte\[32\] succeeded with output' \
 	| awk '{print $6}' \
 	| tr -d '[\n\r"]')
 
@@ -158,12 +174,13 @@ read -p "Press enter to continue"
 ${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT2} \
-	--method "cardWithdraw(string,account,account,asset,byte[32])void" \
+	--method "cardWithdraw(string,address,address,asset,byte[32])void" \
 	--arg '"Master Card"' \
-	--arg ${CARD_ADDR} \
-	--arg ${ACCT2} \
+	--arg \"${CARD_ADDR}\" \
+	--arg \"${ACCT2}\" \
 	--arg ${FUSDC} \
 	--arg \"${WITHDRAWAL_HASH1}\" \
+	--app-account ${CARD_ADDR} \
 	--box "b64:ACILghwHcB9gaGvkDg56T+n/iWuorpF01uMYR4jgQ6PbNQALTWFzdGVyIENhcmQ=" \
 	--fee 2000
 
@@ -171,13 +188,24 @@ ${GOAL} app method \
 ${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT2} \
-	--method "cardWithdraw(string,account,account,asset,byte[32])void" \
+	--method "cardWithdraw(string,address,address,asset,byte[32])void" \
 	--arg '"Master Card"' \
-	--arg ${CARD_ADDR} \
-	--arg ${ACCT2} \
+	--arg \"${CARD_ADDR}\" \
+	--arg \"${ACCT2}\" \
 	--arg ${FUSDC} \
 	--arg \"${WITHDRAWAL_HASH2}\" \
+	--app-account ${CARD_ADDR} \
 	--box "b64:ACILghwHcB9gaGvkDg56T+n/iWuorpF01uMYR4jgQ6PbNQALTWFzdGVyIENhcmQ=" \
+	--fee 2000
+
+# Settle FUSDC
+${GOAL} app method \
+	--app-id ${APP_ID} \
+	-f ${ACCT1} \
+	--method "settle(address,asset,uint64)void" \
+	--arg \"${ACCT1}\" \
+	--arg ${FUSDC} \
+	--arg 5000000 \
 	--fee 2000
 
 # Admin closes the card down
@@ -185,19 +213,30 @@ ${GOAL} app method \
 ${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT1} \
-	--method "cardRemoveAsset(string,account,asset)void" \
+	--method "cardRemoveAsset(string,address,asset)void" \
 	--arg '"Master Card"' \
-	--arg ${CARD_ADDR} \
+	--arg \"${CARD_ADDR}\" \
+	--arg ${FUSDC} \
+	--app-account ${CARD_ADDR} \
+	--fee 3000
+
+# Revoke FakeUSDC
+${GOAL} app method \
+	--app-id ${APP_ID} \
+	-f ${ACCT1} \
+	--method "revokeAsset(asset)void" \
 	--arg ${FUSDC} \
 	--fee 3000
+
 # Now close the card
 ${GOAL} app method \
 	--app-id ${APP_ID} \
 	-f ${ACCT1} \
-	--method "cardClose(string,address,account)void" \
+	--method "cardClose(string,address,address)void" \
 	--arg '"Master Card"' \
 	--arg \"${ACCT2}\" \
-	--arg ${CARD_ADDR} \
+	--arg \"${CARD_ADDR}\" \
+	--app-account ${CARD_ADDR} \
 	--box "b64:ACILghwHcB9gaGvkDg56T+n/iWuorpF01uMYR4jgQ6PbNQALTWFzdGVyIENhcmQ=" \
 	--fee 3000
 

@@ -71,7 +71,7 @@
           "type": "pay"
         },
         {
-          "name": "partner",
+          "name": "fundingChannel",
           "type": "string"
         },
         {
@@ -90,9 +90,9 @@
       "desc": "Close account. This permanently removes the rekey and deletes the account from the ledger",
       "args": [
         {
-          "name": "partner",
+          "name": "fundingChannel",
           "type": "string",
-          "desc": "Partner name"
+          "desc": "Funding Channel name"
         },
         {
           "name": "depositor",
@@ -101,8 +101,36 @@
         },
         {
           "name": "card",
-          "type": "account",
-          "desc": "Account to close"
+          "type": "address",
+          "desc": "Address to close"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "allowAsset",
+      "args": [
+        {
+          "name": "mbr",
+          "type": "pay"
+        },
+        {
+          "name": "asset",
+          "type": "asset"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "revokeAsset",
+      "args": [
+        {
+          "name": "asset",
+          "type": "asset"
         }
       ],
       "returns": {
@@ -118,14 +146,14 @@
           "type": "pay"
         },
         {
-          "name": "partner",
+          "name": "fundingChannel",
           "type": "string",
-          "desc": "Partner name"
+          "desc": "Funding Channel name"
         },
         {
           "name": "card",
-          "type": "account",
-          "desc": "Account to add asset to"
+          "type": "address",
+          "desc": "Address to add asset to"
         },
         {
           "name": "asset",
@@ -142,14 +170,14 @@
       "desc": "Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account",
       "args": [
         {
-          "name": "partner",
+          "name": "fundingChannel",
           "type": "string",
-          "desc": "Partner name"
+          "desc": "Funding Channel name"
         },
         {
           "name": "card",
-          "type": "account",
-          "desc": "Account to remove asset from"
+          "type": "address",
+          "desc": "Address to remove asset from"
         },
         {
           "name": "asset",
@@ -163,46 +191,153 @@
     },
     {
       "name": "cardDebit",
-      "desc": "Allows the owner to send an amount of assets from the account",
+      "desc": "Debits the specified amount of the given asset from the card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
           "name": "card",
-          "type": "account",
-          "desc": "Account to debit from"
-        },
-        {
-          "name": "recipient",
-          "type": "account",
-          "desc": "Receiver of the assets being debited"
+          "type": "address",
+          "desc": "The card account from which the asset will be debited."
         },
         {
           "name": "asset",
           "type": "asset",
-          "desc": "Asset being debited"
+          "desc": "The asset to be debited."
         },
         {
           "name": "amount",
           "type": "uint64",
-          "desc": "Amount to debit"
+          "desc": "The amount of the asset to be debited."
         }
       ],
       "returns": {
         "type": "void"
-      }
+      },
+      "events": [
+        {
+          "name": "Debit",
+          "args": [
+            {
+              "name": "fundingSource",
+              "type": "address",
+              "desc": "Funding Source being debited from"
+            },
+            {
+              "name": "asset",
+              "type": "uint64",
+              "desc": "Asset being debited"
+            },
+            {
+              "name": "amount",
+              "type": "uint64",
+              "desc": "Amount being debited"
+            }
+          ],
+          "desc": "Debit event"
+        }
+      ]
+    },
+    {
+      "name": "cardRefund",
+      "desc": "Refunds a specified amount of an asset to a card account.Only the owner of the contract can perform this operation.",
+      "args": [
+        {
+          "name": "card",
+          "type": "address",
+          "desc": "The card account to refund the asset to."
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "The asset to refund."
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "The amount of the asset to refund."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "Refund",
+          "args": [
+            {
+              "name": "fundingSource",
+              "type": "address",
+              "desc": "Funding Source being refunded to"
+            },
+            {
+              "name": "asset",
+              "type": "uint64",
+              "desc": "Asset being refunded"
+            },
+            {
+              "name": "amount",
+              "type": "uint64",
+              "desc": "Amount being refunded"
+            }
+          ],
+          "desc": "Refund event"
+        }
+      ]
+    },
+    {
+      "name": "settle",
+      "desc": "Settles a payment by transferring an asset to the specified recipient.Only the owner of the contract can call this function.",
+      "args": [
+        {
+          "name": "recipient",
+          "type": "address",
+          "desc": "The address of the recipient."
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "The asset to be transferred."
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "The amount of the asset to be transferred."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "Settlement",
+          "args": [
+            {
+              "name": "asset",
+              "type": "uint64",
+              "desc": "Asset being settled"
+            },
+            {
+              "name": "amount",
+              "type": "uint64",
+              "desc": "Amount being settled"
+            }
+          ],
+          "desc": "Settlement event"
+        }
+      ]
     },
     {
       "name": "cardWithdrawalRequest",
       "desc": "Allows the depositor to send an amount of assets from the account",
       "args": [
         {
-          "name": "partner",
+          "name": "fundingChannel",
           "type": "string",
-          "desc": "Partner name"
+          "desc": "Funding Channel name"
         },
         {
           "name": "card",
-          "type": "account",
-          "desc": "Account to withdraw from"
+          "type": "address",
+          "desc": "Address to withdraw from"
         },
         {
           "name": "asset",
@@ -225,14 +360,14 @@
       "desc": "Allows the depositor (or owner) to cancel a withdrawal request",
       "args": [
         {
-          "name": "partner",
+          "name": "fundingChannel",
           "type": "string",
-          "desc": "Partner name"
+          "desc": "Funding Channel name"
         },
         {
           "name": "card",
-          "type": "account",
-          "desc": "Account to withdraw from"
+          "type": "address",
+          "desc": "Address to withdraw from"
         },
         {
           "name": "withdrawal_hash",
@@ -249,18 +384,18 @@
       "desc": "Allows the depositor to send an amount of assets from the account",
       "args": [
         {
-          "name": "partner",
+          "name": "fundingChannel",
           "type": "string",
-          "desc": "Partner name"
+          "desc": "Funding Channel name"
         },
         {
           "name": "card",
-          "type": "account",
-          "desc": "Account to withdraw from"
+          "type": "address",
+          "desc": "Address to withdraw from"
         },
         {
           "name": "recipient",
-          "type": "account",
+          "type": "address",
           "desc": "Receiver of the assets being withdrawn"
         },
         {
@@ -295,6 +430,69 @@
         }
       ],
       "desc": "Event emitted when ownership of the contract is transferred."
+    },
+    {
+      "name": "CardCreated",
+      "args": [],
+      "desc": ""
+    },
+    {
+      "name": "Debit",
+      "args": [
+        {
+          "name": "fundingSource",
+          "type": "address",
+          "desc": "Funding Source being debited from"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset being debited"
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount being debited"
+        }
+      ],
+      "desc": "Debit event"
+    },
+    {
+      "name": "Refund",
+      "args": [
+        {
+          "name": "fundingSource",
+          "type": "address",
+          "desc": "Funding Source being refunded to"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset being refunded"
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount being refunded"
+        }
+      ],
+      "desc": "Refund event"
+    },
+    {
+      "name": "Settlement",
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset being settled"
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount being settled"
+        }
+      ],
+      "desc": "Settlement event"
     }
   ]
 }
