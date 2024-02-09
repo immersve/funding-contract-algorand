@@ -3,8 +3,30 @@
   "desc": "",
   "methods": [
     {
+      "name": "owner",
+      "readonly": true,
+      "args": [],
+      "returns": {
+        "type": "address"
+      }
+    },
+    {
+      "name": "transferOwnership",
+      "desc": "Transfers the ownership of the contract to a new owner.Requires the caller to be the current owner.",
+      "args": [
+        {
+          "name": "newOwner",
+          "type": "address",
+          "desc": "The address of the new owner."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "deploy",
-      "desc": "Deploy the smart contract, setting the transaction sender as the admin",
+      "desc": "Deploy the smart contract, setting the transaction sender as the owner",
       "args": [],
       "returns": {
         "type": "void"
@@ -12,7 +34,7 @@
     },
     {
       "name": "update",
-      "desc": "Allows the admin to update the smart contract",
+      "desc": "Allows the owner to update the smart contract",
       "args": [],
       "returns": {
         "type": "void"
@@ -20,22 +42,8 @@
     },
     {
       "name": "destroy",
-      "desc": "Destroy the smart contract, sending all Algo to the admin account. This can only be done if there are no active cards",
+      "desc": "Destroy the smart contract, sending all Algo to the owner account. This can only be done if there are no active cards",
       "args": [],
-      "returns": {
-        "type": "void"
-      }
-    },
-    {
-      "name": "setAdmin",
-      "desc": "Allows the current admin to set a new admin",
-      "args": [
-        {
-          "name": "admin",
-          "type": "address",
-          "desc": "Address to be made admin"
-        }
-      ],
       "returns": {
         "type": "void"
       }
@@ -67,7 +75,7 @@
           "type": "string"
         },
         {
-          "name": "owner",
+          "name": "depositor",
           "type": "address",
           "desc": "Address to have control over asset withdrawals"
         }
@@ -87,7 +95,7 @@
           "desc": "Partner name"
         },
         {
-          "name": "owner",
+          "name": "depositor",
           "type": "address",
           "desc": "Address which has control over asset withdrawals"
         },
@@ -103,7 +111,7 @@
     },
     {
       "name": "cardAddAsset",
-      "desc": "Allows the owner (or admin) to OptIn to an asset, increasing the minimum balance requirement of the account",
+      "desc": "Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account",
       "args": [
         {
           "name": "mbr",
@@ -131,7 +139,7 @@
     },
     {
       "name": "cardRemoveAsset",
-      "desc": "Allows the owner (or admin) to CloseOut of an asset, reducing the minimum balance requirement of the account",
+      "desc": "Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account",
       "args": [
         {
           "name": "partner",
@@ -155,7 +163,7 @@
     },
     {
       "name": "cardDebit",
-      "desc": "Allows the admin to send an amount of assets from the account",
+      "desc": "Allows the owner to send an amount of assets from the account",
       "args": [
         {
           "name": "card",
@@ -184,7 +192,7 @@
     },
     {
       "name": "cardWithdrawalRequest",
-      "desc": "Allows the owner to send an amount of assets from the account",
+      "desc": "Allows the depositor to send an amount of assets from the account",
       "args": [
         {
           "name": "partner",
@@ -214,7 +222,7 @@
     },
     {
       "name": "cardWithdrawalCancel",
-      "desc": "Allows the owner (or admin) to cancel a withdrawal request",
+      "desc": "Allows the depositor (or owner) to cancel a withdrawal request",
       "args": [
         {
           "name": "partner",
@@ -238,7 +246,7 @@
     },
     {
       "name": "cardWithdraw",
-      "desc": "Allows the owner to send an amount of assets from the account",
+      "desc": "Allows the depositor to send an amount of assets from the account",
       "args": [
         {
           "name": "partner",
@@ -269,6 +277,24 @@
       "returns": {
         "type": "void"
       }
+    }
+  ],
+  "events": [
+    {
+      "name": "OwnershipTransferred",
+      "args": [
+        {
+          "name": "previousOwner",
+          "type": "address",
+          "desc": "Previous owner address"
+        },
+        {
+          "name": "newOwner",
+          "type": "address",
+          "desc": "New owner address"
+        }
+      ],
+      "desc": "Event emitted when ownership of the contract is transferred."
     }
   ]
 }

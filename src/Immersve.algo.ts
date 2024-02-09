@@ -1,4 +1,5 @@
 import { Contract } from '@algorandfoundation/tealscript';
+import { Ownable } from './roles/Ownable.algo';
 
 // Key to use per partner and depositor
 type PartnerAndDepositor = {
@@ -35,12 +36,9 @@ class Card extends Contract {
     }
 }
 
-class Immersve extends Contract {
+class Immersve extends Contract.extend(Ownable) {
 
 	// ========== Storage ==========
-    // Admin
-    admin = GlobalStateKey<Address>({ key: 'a' });
-
     // Depositor and Card
     cards = BoxMap<PartnerAndDepositor, Address>({});
     active_cards = GlobalStateKey<uint64>({ key: 'c' });
@@ -59,46 +57,38 @@ class Immersve extends Contract {
 
 	// ========== Internal Utils ==========
     /**
-     * Check if the current transaction sender is the admin
-     * @returns True if the sender is the admin
-     */
-    private isAdmin(): boolean {
-        return this.txn.sender === this.admin.value;
-    }
-
-    /**
      * Check if the current transaction sender is the depositor of the card account
      * @param card Address to check
      * @returns True if the sender is the depositor of the card
      */
-    private isOwner(partner: string, card: Address): boolean {
+    private isDepositor(partner: string, card: Address): boolean {
         return this.cards({partner: partner, depositor: this.txn.sender} as PartnerAndDepositor).value === card;
     }
 
 
 	// ========== External Methods ==========
     /**
-     * Deploy the smart contract, setting the transaction sender as the admin
+     * Deploy the smart contract, setting the transaction sender as the owner
      */
     @allow.create("NoOp")
     deploy(): void {
-        this.admin.value = this.txn.sender;
+        this._transferOwnership(this.txn.sender);
     }
 
     /**
-     * Allows the admin to update the smart contract
+     * Allows the owner to update the smart contract
      */
     @allow.call("UpdateApplication")
     update(): void {
-        assert(this.isAdmin());
+        this.onlyOwner();
     }
 
     /**
-     * Destroy the smart contract, sending all Algo to the admin account. This can only be done if there are no active cards
+     * Destroy the smart contract, sending all Algo to the owner account. This can only be done if there are no active cards
      */
     @allow.call("DeleteApplication")
     destroy(): void {
-        assert(this.isAdmin());
+        this.onlyOwner();
 
         // There must not be any active cards
         assert(!this.active_cards.value);
@@ -106,18 +96,8 @@ class Immersve extends Contract {
         sendPayment({
             receiver: this.app.address,
             amount: 0,
-            closeRemainderTo: this.admin.value,
+            closeRemainderTo: this.owner(),
         });
-    }
-
-    /**
-     * Allows the current admin to set a new admin
-     * @param admin Address to be made admin
-     */
-    setAdmin(admin: Address): void {
-        assert(this.isAdmin());
-
-        this.admin.value = admin;
     }
 
     /**
@@ -125,7 +105,7 @@ class Immersve extends Contract {
      * @param rounds New number of rounds to wait
      */
     setWithdrawalRounds(rounds: uint64): void {
-        assert(this.isAdmin());
+        this.onlyOwner();
 
         this.withdrawal_wait_time.value = rounds;
     }
@@ -136,7 +116,7 @@ class Immersve extends Contract {
      * @returns Newly generated account used by their card
      */
     cardCreate(mbr: PayTxn, partner: string, depositor: Address): Address {
-        assert(this.isAdmin());
+        this.onlyOwner();
 
         assert(mbr.amount === globals.minBalance + box_mbr);
         assert(mbr.receiver === this.app.address);
@@ -172,7 +152,7 @@ class Immersve extends Contract {
      * @param card Account to close
      */
     cardClose(partner: string, depositor: Address, card: Account): void {
-        assert(this.isAdmin());
+        this.onlyOwner();
 
         sendPayment({
             sender: card,
@@ -194,13 +174,13 @@ class Immersve extends Contract {
     }
 
     /**
-     * Allows the depositor (or admin) to OptIn to an asset, increasing the minimum balance requirement of the account
+     * Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account
      * @param partner Partner name
      * @param card Account to add asset to
      * @param asset Asset to add
      */
     cardAddAsset(mbr: PayTxn, partner: string, card: Account, asset: Asset): void {
-        assert(this.isAdmin() || this.isOwner(partner, card));
+        assert(this.isOwner() || this.isDepositor(partner, card));
 
         assert(mbr.amount === globals.assetOptInMinBalance);
         assert(mbr.receiver === this.app.address);
@@ -219,13 +199,13 @@ class Immersve extends Contract {
     }
 
     /**
-     * Allows the depositor (or admin) to CloseOut of an asset, reducing the minimum balance requirement of the account
+     * Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account
      * @param partner Partner name
      * @param card Account to remove asset from
      * @param asset Asset to remove
      */
     cardRemoveAsset(partner: string, card: Account, asset: Asset): void {
-        assert(this.isAdmin() || this.isOwner(partner, card));
+        assert(this.isOwner() || this.isDepositor(partner, card));
 
         sendAssetTransfer({
             sender: card,
@@ -243,14 +223,14 @@ class Immersve extends Contract {
     }
 
     /**
-     * Allows the admin to send an amount of assets from the account
+     * Allows the owner to send an amount of assets from the account
      * @param card Account to debit from
      * @param recipient Receiver of the assets being debited
      * @param asset Asset being debited
      * @param amount Amount to debit
      */
     cardDebit(card: Account, recipient: Account, asset: Asset, amount: uint64): void {
-        assert(this.isAdmin());
+        this.onlyOwner();
 
         sendAssetTransfer({
             sender: card,
@@ -271,7 +251,7 @@ class Immersve extends Contract {
     @allow.call("NoOp")
     @allow.call("OptIn")
     cardWithdrawalRequest(partner: string, card: Account, asset: Asset, amount: uint64): bytes32 {
-        assert(this.isOwner(partner, card));
+        assert(this.isDepositor(partner, card));
 
         const withdrawal: WithdrawalRequest = {
             nonce: this.withdrawal_nonce(this.txn.sender).value,
@@ -291,13 +271,13 @@ class Immersve extends Contract {
     }
 
     /**
-     * Allows the depositor (or admin) to cancel a withdrawal request
+     * Allows the depositor (or owner) to cancel a withdrawal request
      * @param partner Partner name
      * @param card Account to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
     cardWithdrawalCancel(partner: string, card: Account, withdrawal_hash: bytes32): void {
-        assert(this.isAdmin() || this.isOwner(partner, card));
+        assert(this.isOwner() || this.isDepositor(partner, card));
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
@@ -313,7 +293,7 @@ class Immersve extends Contract {
     @allow.call("NoOp")
     @allow.call("CloseOut")
     cardWithdraw(partner: string, card: Account, recipient: Account, asset: Asset, withdrawal_hash: bytes32): void {
-        assert(this.isOwner(partner, card));
+        assert(this.isDepositor(partner, card));
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 

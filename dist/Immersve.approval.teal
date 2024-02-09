@@ -21,31 +21,150 @@ switch call_NoOp call_OptIn call_CloseOut NOT_IMPLEMENTED call_UpdateApplication
 NOT_IMPLEMENTED:
 	err
 
-// is_admin(): boolean
+// onlyOwner(): void
 //
-// Check if the current transaction sender is the admin
-// @returns True if the sender is the admin
-is_admin:
+// Assert the transaction sender is the owner of the contract.
+onlyOwner:
+	proto 0 0
+
+	// src/roles/Ownable.algo.ts:55
+	// assert(this.txn.sender === this._owner.value)
+	txn Sender
+	byte 0x5f6f776e6572 // "_owner"
+	app_global_get
+	==
+	assert
+	retsub
+
+// isOwner(): boolean
+//
+// Checks if the current transaction sender is the owner.
+// @returns {boolean} True if the sender is the owner, false otherwise.
+isOwner:
 	proto 0 1
 
-	// src/Immersve.algo.ts:58
-	// return this.txn.sender === this.admin.value;
+	// src/roles/Ownable.algo.ts:63
+	// return this.txn.sender === this._owner.value;
 	txn Sender
-	byte 0x61 // "a"
+	byte 0x5f6f776e6572 // "_owner"
 	app_global_get
 	==
 	retsub
 
-// is_owner(partner: string, card: Address): boolean
+// owner()address
+abi_route_owner:
+	// The ABI return prefix
+	byte 0x151f7c75
+
+	// execute owner()address
+	callsub owner
+	concat
+	log
+	int 1
+	return
+
+// owner(): Address
+owner:
+	proto 0 1
+
+	// src/roles/Ownable.algo.ts:70
+	// return this._owner.value;
+	byte 0x5f6f776e6572 // "_owner"
+	app_global_get
+	retsub
+
+// _transferOwnership(newOwner: Address): void
 //
-// Check if the current transaction sender is the owner of the card account
+// Transfers the ownership of the contract to a new owner.
+// @param newOwner The address of the new owner.
+_transferOwnership:
+	proto 1 0
+
+	// Push empty bytes after the frame pointer to reserve space for local variables
+	byte 0x
+
+	// src/roles/Ownable.algo.ts:80
+	// previousOwner = this._owner.exists ? this._owner.value : globals.zeroAddress
+	txna Applications 0
+	byte 0x5f6f776e6572 // "_owner"
+	app_global_get_ex
+	swap
+	pop
+	bz ternary1_false
+	byte 0x5f6f776e6572 // "_owner"
+	app_global_get
+	b ternary1_end
+
+ternary1_false:
+	global ZeroAddress
+
+ternary1_end:
+	frame_bury 0 // previousOwner: address
+
+	// src/roles/Ownable.algo.ts:81
+	// this._owner.value = newOwner
+	byte 0x5f6f776e6572 // "_owner"
+	frame_dig -1 // newOwner: Address
+	app_global_put
+
+	// src/roles/Ownable.algo.ts:83
+	// this.OwnershipTransferred.log({
+	//             previousOwner: previousOwner,
+	//             newOwner: newOwner
+	//         })
+	byte 0x9a223efb // OwnershipTransferred(address,address)
+	frame_dig 0 // previousOwner: address
+	frame_dig -1 // newOwner: Address
+	concat
+	concat
+	log
+	retsub
+
+// transferOwnership(address)void
+abi_route_transferOwnership:
+	// newOwner: address
+	txna ApplicationArgs 1
+	dup
+	len
+	int 32
+	==
+	assert
+
+	// execute transferOwnership(address)void
+	callsub transferOwnership
+	int 1
+	return
+
+// transferOwnership(newOwner: Address): void
+//
+// Transfers the ownership of the contract to a new owner.
+// Requires the caller to be the current owner.
+//
+// @param newOwner The address of the new owner.
+transferOwnership:
+	proto 1 0
+
+	// src/roles/Ownable.algo.ts:98
+	// assert(this.isOwner())
+	callsub isOwner
+	assert
+
+	// src/roles/Ownable.algo.ts:100
+	// this._transferOwnership(newOwner)
+	frame_dig -1 // newOwner: Address
+	callsub _transferOwnership
+	retsub
+
+// isDepositor(partner: string, card: Address): boolean
+//
+// Check if the current transaction sender is the depositor of the card account
 // @param card Address to check
-// @returns True if the sender is the owner of the card
-is_owner:
+// @returns True if the sender is the depositor of the card
+isDepositor:
 	proto 2 1
 
-	// src/Immersve.algo.ts:67
-	// return this.cards({partner: partner, owner: this.txn.sender} as PartnerAndOwner).value === card;
+	// src/Immersve.algo.ts:65
+	// return this.cards({partner: partner, depositor: this.txn.sender} as PartnerAndDepositor).value === card;
 	byte 0x // initial head
 	byte 0x // initial tail
 	byte 0x0022 // initial head offset
@@ -76,15 +195,14 @@ abi_route_deploy:
 
 // deploy(): void
 //
-// Deploy the smart contract, setting the transaction sender as the admin
+// Deploy the smart contract, setting the transaction sender as the owner
 deploy:
 	proto 0 0
 
 	// src/Immersve.algo.ts:75
-	// this.admin.value = this.txn.sender
-	byte 0x61 // "a"
+	// this._transferOwnership(this.txn.sender)
 	txn Sender
-	app_global_put
+	callsub _transferOwnership
 	retsub
 
 // update()void
@@ -96,14 +214,13 @@ abi_route_update:
 
 // update(): void
 //
-// Allows the admin to update the smart contract
+// Allows the owner to update the smart contract
 update:
 	proto 0 0
 
 	// src/Immersve.algo.ts:83
-	// assert(this.is_admin())
-	callsub is_admin
-	assert
+	// this.onlyOwner()
+	callsub onlyOwner
 	retsub
 
 // destroy()void
@@ -115,14 +232,13 @@ abi_route_destroy:
 
 // destroy(): void
 //
-// Destroy the smart contract, sending all Algo to the admin account. This can only be done if there are no active cards
+// Destroy the smart contract, sending all Algo to the owner account. This can only be done if there are no active cards
 destroy:
 	proto 0 0
 
 	// src/Immersve.algo.ts:91
-	// assert(this.is_admin())
-	callsub is_admin
-	assert
+	// this.onlyOwner()
+	callsub onlyOwner
 
 	// src/Immersve.algo.ts:94
 	// assert(!this.active_cards.value)
@@ -135,7 +251,7 @@ destroy:
 	// sendPayment({
 	//             receiver: this.app.address,
 	//             amount: 0,
-	//             closeRemainderTo: this.admin.value,
+	//             closeRemainderTo: this.owner(),
 	//         })
 	itxn_begin
 	int pay
@@ -152,9 +268,8 @@ destroy:
 	itxn_field Amount
 
 	// src/Immersve.algo.ts:99
-	// closeRemainderTo: this.admin.value
-	byte 0x61 // "a"
-	app_global_get
+	// closeRemainderTo: this.owner()
+	callsub owner
 	itxn_field CloseRemainderTo
 
 	// Fee field not set, defaulting to 0
@@ -163,40 +278,6 @@ destroy:
 
 	// Submit inner transaction
 	itxn_submit
-	retsub
-
-// setAdmin(address)void
-abi_route_setAdmin:
-	// admin: address
-	txna ApplicationArgs 1
-	dup
-	len
-	int 32
-	==
-	assert
-
-	// execute setAdmin(address)void
-	callsub setAdmin
-	int 1
-	return
-
-// setAdmin(admin: Address): void
-//
-// Allows the current admin to set a new admin
-// @param admin Address to be made admin
-setAdmin:
-	proto 1 0
-
-	// src/Immersve.algo.ts:108
-	// assert(this.is_admin())
-	callsub is_admin
-	assert
-
-	// src/Immersve.algo.ts:110
-	// this.admin.value = admin
-	byte 0x61 // "a"
-	frame_dig -1 // admin: Address
-	app_global_put
 	retsub
 
 // setWithdrawalRounds(uint64)void
@@ -217,12 +298,11 @@ abi_route_setWithdrawalRounds:
 setWithdrawalRounds:
 	proto 1 0
 
-	// src/Immersve.algo.ts:118
-	// assert(this.is_admin())
-	callsub is_admin
-	assert
+	// src/Immersve.algo.ts:108
+	// this.onlyOwner()
+	callsub onlyOwner
 
-	// src/Immersve.algo.ts:120
+	// src/Immersve.algo.ts:110
 	// this.withdrawal_wait_time.value = rounds
 	byte 0x77 // "w"
 	frame_dig -1 // rounds: uint64
@@ -234,7 +314,7 @@ abi_route_cardCreate:
 	// The ABI return prefix
 	byte 0x151f7c75
 
-	// owner: address
+	// depositor: address
 	txna ApplicationArgs 2
 	dup
 	len
@@ -263,10 +343,10 @@ abi_route_cardCreate:
 	int 1
 	return
 
-// cardCreate(mbr: PayTxn, partner: string, owner: Address): Address
+// cardCreate(mbr: PayTxn, partner: string, depositor: Address): Address
 //
 // Create account. This generates a brand new account and funds the minimum balance requirement
-// @param owner Address to have control over asset withdrawals
+// @param depositor Address to have control over asset withdrawals
 // @returns Newly generated account used by their card
 cardCreate:
 	proto 3 1
@@ -274,12 +354,11 @@ cardCreate:
 	// Push empty bytes after the frame pointer to reserve space for local variables
 	byte 0x
 
-	// src/Immersve.algo.ts:129
-	// assert(this.is_admin())
-	callsub is_admin
-	assert
+	// src/Immersve.algo.ts:119
+	// this.onlyOwner()
+	callsub onlyOwner
 
-	// src/Immersve.algo.ts:131
+	// src/Immersve.algo.ts:121
 	// assert(mbr.amount === globals.minBalance + box_mbr)
 	frame_dig -1 // mbr: PayTxn
 	gtxns Amount
@@ -289,7 +368,7 @@ cardCreate:
 	==
 	assert
 
-	// src/Immersve.algo.ts:132
+	// src/Immersve.algo.ts:122
 	// assert(mbr.receiver === this.app.address)
 	frame_dig -1 // mbr: PayTxn
 	gtxns Receiver
@@ -297,7 +376,7 @@ cardCreate:
 	==
 	assert
 
-	// src/Immersve.algo.ts:135
+	// src/Immersve.algo.ts:125
 	// card_addr = sendMethodCall<[], Address>({
 	//             name: "new",
 	//             onCompletion: OnCompletion.DeleteApplication,
@@ -310,17 +389,17 @@ cardCreate:
 	method "new()address"
 	itxn_field ApplicationArgs
 
-	// src/Immersve.algo.ts:137
+	// src/Immersve.algo.ts:127
 	// onCompletion: OnCompletion.DeleteApplication
 	int 5 // DeleteApplication
 	itxn_field OnCompletion
 
-	// src/Immersve.algo.ts:138
+	// src/Immersve.algo.ts:128
 	// approvalProgram: Card.approvalProgram()
 	byte b64 CiACAQAxGBSBBgsxGQiNDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJwCABBUffHWIAARQsCJDigABsSKyEDIKsgcjsggyDrIgI7IBszIKiYAEVh0v6jYaAI4B/80A
 	itxn_field ApprovalProgram
 
-	// src/Immersve.algo.ts:139
+	// src/Immersve.algo.ts:129
 	// clearStateProgram: Card.clearProgram()
 	byte b64 Cg==
 	itxn_field ClearStateProgram
@@ -338,7 +417,7 @@ cardCreate:
 	extract 4 0
 	frame_bury 0 // card_addr: address
 
-	// src/Immersve.algo.ts:143
+	// src/Immersve.algo.ts:133
 	// sendPayment({
 	//             receiver: card_addr,
 	//             amount: globals.minBalance,
@@ -347,12 +426,12 @@ cardCreate:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:144
+	// src/Immersve.algo.ts:134
 	// receiver: card_addr
 	frame_dig 0 // card_addr: address
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:145
+	// src/Immersve.algo.ts:135
 	// amount: globals.minBalance
 	global MinBalance
 	itxn_field Amount
@@ -364,8 +443,8 @@ cardCreate:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:149
-	// this.cards({ partner: partner, owner: owner} as PartnerAndOwner).value = card_addr
+	// src/Immersve.algo.ts:139
+	// this.cards({ partner: partner, depositor: depositor} as PartnerAndDepositor).value = card_addr
 	byte 0x // initial head
 	byte 0x // initial tail
 	byte 0x0022 // initial head offset
@@ -377,14 +456,14 @@ cardCreate:
 	swap
 	concat
 	callsub process_dynamic_tuple_element
-	frame_dig -3 // owner: Address
+	frame_dig -3 // depositor: Address
 	callsub process_static_tuple_element
 	pop // pop head offset
 	concat // concat head and tail
 	frame_dig 0 // card_addr: address
 	box_put
 
-	// src/Immersve.algo.ts:152
+	// src/Immersve.algo.ts:142
 	// this.active_cards.value = this.active_cards.value + 1
 	byte 0x63 // "c"
 	dup
@@ -393,7 +472,7 @@ cardCreate:
 	+
 	app_global_put
 
-	// src/Immersve.algo.ts:155
+	// src/Immersve.algo.ts:145
 	// return card_addr;
 	frame_dig 0 // card_addr: address
 
@@ -408,7 +487,7 @@ abi_route_cardClose:
 	btoi
 	txnas Accounts
 
-	// owner: address
+	// depositor: address
 	txna ApplicationArgs 2
 	dup
 	len
@@ -425,21 +504,20 @@ abi_route_cardClose:
 	int 1
 	return
 
-// cardClose(partner: string, owner: Address, card: Account): void
+// cardClose(partner: string, depositor: Address, card: Account): void
 //
 // Close account. This permanently removes the rekey and deletes the account from the ledger
 // @param partner Partner name
-// @param owner Address which has control over asset withdrawals
+// @param depositor Address which has control over asset withdrawals
 // @param card Account to close
 cardClose:
 	proto 3 0
 
-	// src/Immersve.algo.ts:165
-	// assert(this.is_admin())
-	callsub is_admin
-	assert
+	// src/Immersve.algo.ts:155
+	// this.onlyOwner()
+	callsub onlyOwner
 
-	// src/Immersve.algo.ts:167
+	// src/Immersve.algo.ts:157
 	// sendPayment({
 	//             sender: card,
 	//             receiver: card,
@@ -450,22 +528,22 @@ cardClose:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:168
+	// src/Immersve.algo.ts:158
 	// sender: card
 	frame_dig -3 // card: Account
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:169
+	// src/Immersve.algo.ts:159
 	// receiver: card
 	frame_dig -3 // card: Account
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:170
+	// src/Immersve.algo.ts:160
 	// amount: 0
 	int 0
 	itxn_field Amount
 
-	// src/Immersve.algo.ts:171
+	// src/Immersve.algo.ts:161
 	// closeRemainderTo: this.txn.sender
 	txn Sender
 	itxn_field CloseRemainderTo
@@ -477,7 +555,7 @@ cardClose:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:174
+	// src/Immersve.algo.ts:164
 	// sendPayment({
 	//             receiver: this.txn.sender,
 	//             amount: box_mbr,
@@ -486,12 +564,12 @@ cardClose:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:175
+	// src/Immersve.algo.ts:165
 	// receiver: this.txn.sender
 	txn Sender
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:176
+	// src/Immersve.algo.ts:166
 	// amount: box_mbr
 	int 40900
 	itxn_field Amount
@@ -503,8 +581,8 @@ cardClose:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:180
-	// this.cards({partner: partner, owner: owner} as PartnerAndOwner).delete()
+	// src/Immersve.algo.ts:170
+	// this.cards({partner: partner, depositor: depositor} as PartnerAndDepositor).delete()
 	byte 0x // initial head
 	byte 0x // initial tail
 	byte 0x0022 // initial head offset
@@ -516,13 +594,13 @@ cardClose:
 	swap
 	concat
 	callsub process_dynamic_tuple_element
-	frame_dig -2 // owner: Address
+	frame_dig -2 // depositor: Address
 	callsub process_static_tuple_element
 	pop // pop head offset
 	concat // concat head and tail
 	box_del
 
-	// src/Immersve.algo.ts:183
+	// src/Immersve.algo.ts:173
 	// this.active_cards.value = this.active_cards.value - 1
 	byte 0x63 // "c"
 	dup
@@ -565,27 +643,27 @@ abi_route_cardAddAsset:
 
 // cardAddAsset(mbr: PayTxn, partner: string, card: Account, asset: Asset): void
 //
-// Allows the owner (or admin) to OptIn to an asset, increasing the minimum balance requirement of the account
+// Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account
 // @param partner Partner name
 // @param card Account to add asset to
 // @param asset Asset to add
 cardAddAsset:
 	proto 4 0
 
-	// src/Immersve.algo.ts:193
-	// assert(this.is_admin() || this.is_owner(partner, card))
-	callsub is_admin
+	// src/Immersve.algo.ts:183
+	// assert(this.isOwner() || this.isDepositor(partner, card))
+	callsub isOwner
 	dup
 	bnz skip_or0
 	frame_dig -3 // card: Account
 	frame_dig -2 // partner: string
-	callsub is_owner
+	callsub isDepositor
 	||
 
 skip_or0:
 	assert
 
-	// src/Immersve.algo.ts:195
+	// src/Immersve.algo.ts:185
 	// assert(mbr.amount === globals.assetOptInMinBalance)
 	frame_dig -1 // mbr: PayTxn
 	gtxns Amount
@@ -593,7 +671,7 @@ skip_or0:
 	==
 	assert
 
-	// src/Immersve.algo.ts:196
+	// src/Immersve.algo.ts:186
 	// assert(mbr.receiver === this.app.address)
 	frame_dig -1 // mbr: PayTxn
 	gtxns Receiver
@@ -601,7 +679,7 @@ skip_or0:
 	==
 	assert
 
-	// src/Immersve.algo.ts:198
+	// src/Immersve.algo.ts:188
 	// sendPayment({
 	//             receiver: card,
 	//             amount: globals.assetOptInMinBalance,
@@ -610,12 +688,12 @@ skip_or0:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:199
+	// src/Immersve.algo.ts:189
 	// receiver: card
 	frame_dig -3 // card: Account
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:200
+	// src/Immersve.algo.ts:190
 	// amount: globals.assetOptInMinBalance
 	global AssetOptInMinBalance
 	itxn_field Amount
@@ -627,7 +705,7 @@ skip_or0:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:203
+	// src/Immersve.algo.ts:193
 	// sendAssetTransfer({
 	//             sender: card,
 	//             assetReceiver: card,
@@ -638,22 +716,22 @@ skip_or0:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:204
+	// src/Immersve.algo.ts:194
 	// sender: card
 	frame_dig -3 // card: Account
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:205
+	// src/Immersve.algo.ts:195
 	// assetReceiver: card
 	frame_dig -3 // card: Account
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:206
+	// src/Immersve.algo.ts:196
 	// xferAsset: asset
 	frame_dig -4 // asset: Asset
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:207
+	// src/Immersve.algo.ts:197
 	// assetAmount: 0
 	int 0
 	itxn_field AssetAmount
@@ -689,27 +767,27 @@ abi_route_cardRemoveAsset:
 
 // cardRemoveAsset(partner: string, card: Account, asset: Asset): void
 //
-// Allows the owner (or admin) to CloseOut of an asset, reducing the minimum balance requirement of the account
+// Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account
 // @param partner Partner name
 // @param card Account to remove asset from
 // @param asset Asset to remove
 cardRemoveAsset:
 	proto 3 0
 
-	// src/Immersve.algo.ts:218
-	// assert(this.is_admin() || this.is_owner(partner, card))
-	callsub is_admin
+	// src/Immersve.algo.ts:208
+	// assert(this.isOwner() || this.isDepositor(partner, card))
+	callsub isOwner
 	dup
 	bnz skip_or1
 	frame_dig -2 // card: Account
 	frame_dig -1 // partner: string
-	callsub is_owner
+	callsub isDepositor
 	||
 
 skip_or1:
 	assert
 
-	// src/Immersve.algo.ts:220
+	// src/Immersve.algo.ts:210
 	// sendAssetTransfer({
 	//             sender: card,
 	//             assetReceiver: card,
@@ -721,27 +799,27 @@ skip_or1:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:221
+	// src/Immersve.algo.ts:211
 	// sender: card
 	frame_dig -2 // card: Account
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:222
+	// src/Immersve.algo.ts:212
 	// assetReceiver: card
 	frame_dig -2 // card: Account
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:223
+	// src/Immersve.algo.ts:213
 	// assetCloseTo: card
 	frame_dig -2 // card: Account
 	itxn_field AssetCloseTo
 
-	// src/Immersve.algo.ts:224
+	// src/Immersve.algo.ts:214
 	// xferAsset: asset
 	frame_dig -3 // asset: Asset
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:225
+	// src/Immersve.algo.ts:215
 	// assetAmount: 0
 	int 0
 	itxn_field AssetAmount
@@ -753,7 +831,7 @@ skip_or1:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:228
+	// src/Immersve.algo.ts:218
 	// sendPayment({
 	//             sender: card,
 	//             receiver: this.txn.sender,
@@ -763,17 +841,17 @@ skip_or1:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:229
+	// src/Immersve.algo.ts:219
 	// sender: card
 	frame_dig -2 // card: Account
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:230
+	// src/Immersve.algo.ts:220
 	// receiver: this.txn.sender
 	txn Sender
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:231
+	// src/Immersve.algo.ts:221
 	// amount: globals.assetOptInMinBalance
 	global AssetOptInMinBalance
 	itxn_field Amount
@@ -814,7 +892,7 @@ abi_route_cardDebit:
 
 // cardDebit(card: Account, recipient: Account, asset: Asset, amount: uint64): void
 //
-// Allows the admin to send an amount of assets from the account
+// Allows the owner to send an amount of assets from the account
 // @param card Account to debit from
 // @param recipient Receiver of the assets being debited
 // @param asset Asset being debited
@@ -822,12 +900,11 @@ abi_route_cardDebit:
 cardDebit:
 	proto 4 0
 
-	// src/Immersve.algo.ts:243
-	// assert(this.is_admin())
-	callsub is_admin
-	assert
+	// src/Immersve.algo.ts:233
+	// this.onlyOwner()
+	callsub onlyOwner
 
-	// src/Immersve.algo.ts:245
+	// src/Immersve.algo.ts:235
 	// sendAssetTransfer({
 	//             sender: card,
 	//             assetReceiver: recipient,
@@ -838,22 +915,22 @@ cardDebit:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:246
+	// src/Immersve.algo.ts:236
 	// sender: card
 	frame_dig -1 // card: Account
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:247
+	// src/Immersve.algo.ts:237
 	// assetReceiver: recipient
 	frame_dig -2 // recipient: Account
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:248
+	// src/Immersve.algo.ts:238
 	// xferAsset: asset
 	frame_dig -3 // asset: Asset
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:249
+	// src/Immersve.algo.ts:239
 	// assetAmount: amount
 	frame_dig -4 // amount: uint64
 	itxn_field AssetAmount
@@ -898,7 +975,7 @@ abi_route_cardWithdrawalRequest:
 
 // cardWithdrawalRequest(partner: string, card: Account, asset: Asset, amount: uint64): bytes32
 //
-// Allows the owner to send an amount of assets from the account
+// Allows the depositor to send an amount of assets from the account
 // @param partner Partner name
 // @param card Account to withdraw from
 // @param asset Asset being withdrawn
@@ -911,14 +988,14 @@ cardWithdrawalRequest:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:264
-	// assert(this.is_owner(partner, card))
+	// src/Immersve.algo.ts:254
+	// assert(this.isDepositor(partner, card))
 	frame_dig -2 // card: Account
 	frame_dig -1 // partner: string
-	callsub is_owner
+	callsub isDepositor
 	assert
 
-	// src/Immersve.algo.ts:266
+	// src/Immersve.algo.ts:256
 	// withdrawal: WithdrawalRequest = {
 	//             nonce: this.withdrawal_nonce(this.txn.sender).value,
 	//             round: globals.round + this.withdrawal_wait_time.value,
@@ -943,7 +1020,7 @@ cardWithdrawalRequest:
 	concat
 	frame_bury 0 // withdrawal: WithdrawalRequest
 
-	// src/Immersve.algo.ts:272
+	// src/Immersve.algo.ts:262
 	// this.withdrawal_nonce(this.txn.sender).value = this.withdrawal_nonce(this.txn.sender).value + 1
 	txn Sender
 	byte 0x6e // "n"
@@ -954,13 +1031,13 @@ cardWithdrawalRequest:
 	+
 	app_local_put
 
-	// src/Immersve.algo.ts:273
+	// src/Immersve.algo.ts:263
 	// withdrawal_hash = sha256(rawBytes(withdrawal))
 	frame_dig 0 // withdrawal: WithdrawalRequest
 	sha256
 	frame_bury 1 // withdrawal_hash: byte[32]
 
-	// src/Immersve.algo.ts:275
+	// src/Immersve.algo.ts:265
 	// this.withdrawals(
 	//             this.txn.sender,
 	//             withdrawal_hash,
@@ -970,7 +1047,7 @@ cardWithdrawalRequest:
 	frame_dig 0 // withdrawal: WithdrawalRequest
 	app_local_put
 
-	// src/Immersve.algo.ts:280
+	// src/Immersve.algo.ts:270
 	// return withdrawal_hash;
 	frame_dig 1 // withdrawal_hash: byte[32]
 
@@ -1007,27 +1084,27 @@ abi_route_cardWithdrawalCancel:
 
 // cardWithdrawalCancel(partner: string, card: Account, withdrawal_hash: bytes32): void
 //
-// Allows the owner (or admin) to cancel a withdrawal request
+// Allows the depositor (or owner) to cancel a withdrawal request
 // @param partner Partner name
 // @param card Account to withdraw from
 // @param withdrawal_hash Hash of the withdrawal request
 cardWithdrawalCancel:
 	proto 3 0
 
-	// src/Immersve.algo.ts:290
-	// assert(this.is_admin() || this.is_owner(partner, card))
-	callsub is_admin
+	// src/Immersve.algo.ts:280
+	// assert(this.isOwner() || this.isDepositor(partner, card))
+	callsub isOwner
 	dup
 	bnz skip_or2
 	frame_dig -2 // card: Account
 	frame_dig -1 // partner: string
-	callsub is_owner
+	callsub isDepositor
 	||
 
 skip_or2:
 	assert
 
-	// src/Immersve.algo.ts:292
+	// src/Immersve.algo.ts:282
 	// this.withdrawals(this.txn.sender, withdrawal_hash).delete()
 	txn Sender
 	frame_dig -3 // withdrawal_hash: bytes32
@@ -1070,7 +1147,7 @@ abi_route_cardWithdraw:
 
 // cardWithdraw(partner: string, card: Account, recipient: Account, asset: Asset, withdrawal_hash: bytes32): void
 //
-// Allows the owner to send an amount of assets from the account
+// Allows the depositor to send an amount of assets from the account
 // @param partner Partner name
 // @param card Account to withdraw from
 // @param recipient Receiver of the assets being withdrawn
@@ -1083,24 +1160,24 @@ cardWithdraw:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:306
-	// assert(this.is_owner(partner, card))
+	// src/Immersve.algo.ts:296
+	// assert(this.isDepositor(partner, card))
 	frame_dig -2 // card: Account
 	frame_dig -1 // partner: string
-	callsub is_owner
+	callsub isDepositor
 	assert
 
-	// src/Immersve.algo.ts:308
+	// src/Immersve.algo.ts:298
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	frame_dig -5 // withdrawal_hash: bytes32
 	frame_bury 0 // storage key//withdrawal
 
-	// src/Immersve.algo.ts:308
+	// src/Immersve.algo.ts:298
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	txn Sender
 	frame_bury 1 // storage account//withdrawal
 
-	// src/Immersve.algo.ts:310
+	// src/Immersve.algo.ts:300
 	// assert(globals.round >= withdrawal.round)
 	global Round
 	frame_dig 1 // storage account//withdrawal
@@ -1111,7 +1188,7 @@ cardWithdraw:
 	>=
 	assert
 
-	// src/Immersve.algo.ts:312
+	// src/Immersve.algo.ts:302
 	// sendAssetTransfer({
 	//             sender: card,
 	//             assetReceiver: recipient,
@@ -1122,17 +1199,17 @@ cardWithdraw:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:313
+	// src/Immersve.algo.ts:303
 	// sender: card
 	frame_dig -2 // card: Account
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:314
+	// src/Immersve.algo.ts:304
 	// assetReceiver: recipient
 	frame_dig -3 // recipient: Account
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:315
+	// src/Immersve.algo.ts:305
 	// xferAsset: withdrawal.asset
 	frame_dig 1 // storage account//withdrawal
 	frame_dig 0 // storage key//withdrawal
@@ -1141,7 +1218,7 @@ cardWithdraw:
 	btoi
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:316
+	// src/Immersve.algo.ts:306
 	// assetAmount: withdrawal.amount
 	frame_dig 1 // storage account//withdrawal
 	frame_dig 0 // storage key//withdrawal
@@ -1157,7 +1234,7 @@ cardWithdraw:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:319
+	// src/Immersve.algo.ts:309
 	// this.withdrawals(this.txn.sender, withdrawal_hash).delete()
 	txn Sender
 	frame_dig -5 // withdrawal_hash: bytes32
@@ -1171,7 +1248,8 @@ create_NoOp:
 	err
 
 call_NoOp:
-	method "setAdmin(address)void"
+	method "owner()address"
+	method "transferOwnership(address)void"
 	method "setWithdrawalRounds(uint64)void"
 	method "cardCreate(pay,string,address)address"
 	method "cardClose(string,address,account)void"
@@ -1182,7 +1260,7 @@ call_NoOp:
 	method "cardWithdrawalCancel(string,account,byte[32])void"
 	method "cardWithdraw(string,account,account,asset,byte[32])void"
 	txna ApplicationArgs 0
-	match abi_route_setAdmin abi_route_setWithdrawalRounds abi_route_cardCreate abi_route_cardClose abi_route_cardAddAsset abi_route_cardRemoveAsset abi_route_cardDebit abi_route_cardWithdrawalRequest abi_route_cardWithdrawalCancel abi_route_cardWithdraw
+	match abi_route_owner abi_route_transferOwnership abi_route_setWithdrawalRounds abi_route_cardCreate abi_route_cardClose abi_route_cardAddAsset abi_route_cardRemoveAsset abi_route_cardDebit abi_route_cardWithdrawalRequest abi_route_cardWithdrawalCancel abi_route_cardWithdraw
 	err
 
 call_OptIn:
