@@ -9,6 +9,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@algorandfoundation/algokit-client-generator": "^2.6.0",
     "@algorandfoundation/tealscript": "^0.82.1"
   }
 }
