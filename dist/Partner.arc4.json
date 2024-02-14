@@ -1,5 +1,5 @@
 {
-  "name": "Immersve",
+  "name": "Partner",
   "desc": "",
   "methods": [
     {
@@ -26,8 +26,13 @@
     },
     {
       "name": "deploy",
-      "desc": "Deploy the smart contract, setting the transaction sender as the owner",
-      "args": [],
+      "desc": "Deploy a Partner, setting the owner as provided",
+      "args": [
+        {
+          "name": "owner",
+          "type": "address"
+        }
+      ],
       "returns": {
         "type": "void"
       }
@@ -71,11 +76,15 @@
           "type": "pay"
         },
         {
-          "name": "fundingChannel",
+          "name": "partner",
           "type": "string"
         },
         {
-          "name": "depositor",
+          "name": "asset",
+          "type": "asset"
+        },
+        {
+          "name": "cardHolder",
           "type": "address",
           "desc": "Address to have control over asset withdrawals"
         }
@@ -90,12 +99,16 @@
       "desc": "Close account. This permanently removes the rekey and deletes the account from the ledger",
       "args": [
         {
-          "name": "fundingChannel",
+          "name": "partner",
           "type": "string",
           "desc": "Funding Channel name"
         },
         {
-          "name": "depositor",
+          "name": "asset",
+          "type": "asset"
+        },
+        {
+          "name": "cardHolder",
           "type": "address",
           "desc": "Address which has control over asset withdrawals"
         },
@@ -103,86 +116,6 @@
           "name": "card",
           "type": "address",
           "desc": "Address to close"
-        }
-      ],
-      "returns": {
-        "type": "void"
-      }
-    },
-    {
-      "name": "allowAsset",
-      "args": [
-        {
-          "name": "mbr",
-          "type": "pay"
-        },
-        {
-          "name": "asset",
-          "type": "asset"
-        }
-      ],
-      "returns": {
-        "type": "void"
-      }
-    },
-    {
-      "name": "revokeAsset",
-      "args": [
-        {
-          "name": "asset",
-          "type": "asset"
-        }
-      ],
-      "returns": {
-        "type": "void"
-      }
-    },
-    {
-      "name": "cardAddAsset",
-      "desc": "Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account",
-      "args": [
-        {
-          "name": "mbr",
-          "type": "pay"
-        },
-        {
-          "name": "fundingChannel",
-          "type": "string",
-          "desc": "Funding Channel name"
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "Address to add asset to"
-        },
-        {
-          "name": "asset",
-          "type": "asset",
-          "desc": "Asset to add"
-        }
-      ],
-      "returns": {
-        "type": "void"
-      }
-    },
-    {
-      "name": "cardRemoveAsset",
-      "desc": "Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account",
-      "args": [
-        {
-          "name": "fundingChannel",
-          "type": "string",
-          "desc": "Funding Channel name"
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "Address to remove asset from"
-        },
-        {
-          "name": "asset",
-          "type": "asset",
-          "desc": "Asset to remove"
         }
       ],
       "returns": {
@@ -217,7 +150,7 @@
           "name": "Debit",
           "args": [
             {
-              "name": "fundingSource",
+              "name": "card",
               "type": "address",
               "desc": "Funding Source being debited from"
             },
@@ -264,7 +197,7 @@
           "name": "Refund",
           "args": [
             {
-              "name": "fundingSource",
+              "name": "card",
               "type": "address",
               "desc": "Funding Source being refunded to"
             },
@@ -327,22 +260,22 @@
     },
     {
       "name": "cardWithdrawalRequest",
-      "desc": "Allows the depositor to send an amount of assets from the account",
+      "desc": "Allows the Card Holder to send an amount of assets from the account",
       "args": [
         {
-          "name": "fundingChannel",
+          "name": "partner",
           "type": "string",
           "desc": "Funding Channel name"
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "Address to withdraw from"
         },
         {
           "name": "asset",
           "type": "asset",
           "desc": "Asset being withdrawn"
+        },
+        {
+          "name": "card",
+          "type": "address",
+          "desc": "Address to withdraw from"
         },
         {
           "name": "amount",
@@ -357,12 +290,16 @@
     },
     {
       "name": "cardWithdrawalCancel",
-      "desc": "Allows the depositor (or owner) to cancel a withdrawal request",
+      "desc": "Allows the Card Holder (or contract owner) to cancel a withdrawal request",
       "args": [
         {
-          "name": "fundingChannel",
+          "name": "partner",
           "type": "string",
           "desc": "Funding Channel name"
+        },
+        {
+          "name": "asset",
+          "type": "asset"
         },
         {
           "name": "card",
@@ -381,12 +318,17 @@
     },
     {
       "name": "cardWithdraw",
-      "desc": "Allows the depositor to send an amount of assets from the account",
+      "desc": "Allows the Card Holder to send an amount of assets from the account",
       "args": [
         {
-          "name": "fundingChannel",
+          "name": "partner",
           "type": "string",
           "desc": "Funding Channel name"
+        },
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": "Asset being withdrawn"
         },
         {
           "name": "card",
@@ -397,11 +339,6 @@
           "name": "recipient",
           "type": "address",
           "desc": "Receiver of the assets being withdrawn"
-        },
-        {
-          "name": "asset",
-          "type": "asset",
-          "desc": "Asset being withdrawn"
         },
         {
           "name": "withdrawal_hash",
@@ -440,7 +377,7 @@
       "name": "Debit",
       "args": [
         {
-          "name": "fundingSource",
+          "name": "card",
           "type": "address",
           "desc": "Funding Source being debited from"
         },
@@ -461,7 +398,7 @@
       "name": "Refund",
       "args": [
         {
-          "name": "fundingSource",
+          "name": "card",
           "type": "address",
           "desc": "Funding Source being refunded to"
         },

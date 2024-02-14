@@ -24,10 +24,11 @@
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 
-// FundingSource = FundingChannel + Depositor
-type FundingSource = {
-    fundingChannel: string,
-    depositor: Address
+// Card = Partner + Asset + Card Holder
+type CardDetails = {
+    partner: string,
+    asset: Asset,
+    cardHolder: Address
 };
 
 // Withdrawal request for an amount of an asset, where the round indicates the earliest it can be made
@@ -38,9 +39,9 @@ type WithdrawalRequest = {
     amount: uint64
 };
 
-// Cost of storing FundingSource's associated account in a box
-//const box_mbr = (2500) + (400 * (64 + 32));
-const box_mbr = 40900;
+// Cost of storing Card data in a box
+//const box_mbr = (2500) + (400 * ((32 + 8 + 32) + 32));
+const box_mbr = 44100;
 
 class Card extends Contract {
     /**
@@ -59,12 +60,60 @@ class Card extends Contract {
     }
 }
 
-class Immersve extends Contract.extend(Ownable) {
+//class PartnerFactory extends Contract.extend(Ownable) {
+//	// ========== External Methods ==========
+//    /**
+//     * Deploy the Partner Factory, setting the transaction sender as the owner
+//     */
+//    @allow.create("NoOp")
+//    deploy(owner: Address): void {
+//        this._transferOwnership(this.txn.sender);
+//    }
+//
+//    /**
+//     * Allows the owner to update the smart contract
+//     */
+//    @allow.call("UpdateApplication")
+//    update(): void {
+//        this.onlyOwner();
+//    }
+//
+//    /**
+//     * Destroy the smart contract, sending all Algo to the owner account
+//     */
+//    @allow.call("DeleteApplication")
+//    destroy(): void {
+//        this.onlyOwner();
+//
+//        sendPayment({
+//            receiver: this.app.address,
+//            amount: 0,
+//            closeRemainderTo: this.owner(),
+//        });
+//    }
+//
+//    // TODO
+//    newPartner(): void {
+//        sendMethodCall<[Address], void>({
+//            name: "deploy",
+//            //approvalProgram: Partner.approvalProgram(),
+//            //clearStateProgram: Partner.clearProgram(),
+//            methodArgs: [
+//                this.txn.sender
+//            ],
+//        });
+//    }
+//}
+
+class Partner extends Contract.extend(Ownable) {
 
 	// ========== Storage ==========
-    // Depositor and Card
-    cards = BoxMap<FundingSource, Address>({});
+    // Cards
+    cards = BoxMap<CardDetails, Address>({});
     active_cards = GlobalStateKey<uint64>({ key: 'c' });
+
+    // Asset
+    asset = GlobalStateKey<Asset>({ key: 'a' });
 
     // Rounds to wait
     withdrawal_wait_time = GlobalStateKey<uint64>({ key: 'w' });
@@ -84,7 +133,7 @@ class Immersve extends Contract.extend(Ownable) {
      */
     Debit = new EventLogger<{
         /** Funding Source being debited from */
-        fundingSource: Address,
+        card: Address,
         /** Asset being debited */
         asset: Asset,
         /** Amount being debited */
@@ -96,7 +145,7 @@ class Immersve extends Contract.extend(Ownable) {
      */
     Refund = new EventLogger<{
         /** Funding Source being refunded to */
-        fundingSource: Address,
+        card: Address,
         /** Asset being refunded */
         asset: Asset,
         /** Amount being refunded */
@@ -116,22 +165,22 @@ class Immersve extends Contract.extend(Ownable) {
 
 	// ========== Internal Utils ==========
     /**
-     * Check if the current transaction sender is the depositor of the card account
+     * Check if the current transaction sender is the Card Holder of the card account
      * @param card Address to check
-     * @returns True if the sender is the depositor of the card
+     * @returns True if the sender is the Card Holder of the card
      */
-    private isDepositor(fundingChannel: string, card: Address): boolean {
-        return this.cards({fundingChannel: fundingChannel, depositor: this.txn.sender} as FundingSource).value === card;
+    private isCardHolder(partner: string, asset: Asset, card: Address): boolean {
+        return this.cards({partner: partner, asset: asset, cardHolder: this.txn.sender} as CardDetails).value === card;
     }
 
 
 	// ========== External Methods ==========
     /**
-     * Deploy the smart contract, setting the transaction sender as the owner
+     * Deploy a Partner, setting the owner as provided
      */
     @allow.create("NoOp")
-    deploy(): void {
-        this._transferOwnership(this.txn.sender);
+    deploy(owner: Address): void {
+        this._transferOwnership(owner);
     }
 
     /**
@@ -171,10 +220,10 @@ class Immersve extends Contract.extend(Ownable) {
 
     /**
      * Create account. This generates a brand new account and funds the minimum balance requirement
-     * @param depositor Address to have control over asset withdrawals
+     * @param cardHolder Address to have control over asset withdrawals
      * @returns Newly generated account used by their card
      */
-    cardCreate(mbr: PayTxn, fundingChannel: string, depositor: Address): Address {
+    cardCreate(mbr: PayTxn, partner: string, asset: Asset, cardHolder: Address): Address {
         this.onlyOwner();
 
         verifyPayTxn(mbr, {
@@ -190,14 +239,22 @@ class Immersve extends Contract.extend(Ownable) {
             clearStateProgram: Card.clearProgram(),
         });
 
-        // Fund the account with a minimum balance
+        // Fund the account with a minimum balance for opting into the asset
         sendPayment({
             receiver: card_addr,
-            amount: globals.minBalance,
+            amount: globals.minBalance + globals.assetOptInMinBalance,
         });
 
-        // Store new card along with depositor
-        this.cards({fundingChannel: fundingChannel, depositor: depositor} as FundingSource).value = card_addr;
+        // Opt-in to the asset
+        sendAssetTransfer({
+            sender: card_addr,
+            assetReceiver: card_addr,
+            xferAsset: asset,
+            assetAmount: 0,
+        });
+
+        // Store new card along with Card Holder
+        this.cards({partner: partner, asset: asset, cardHolder: cardHolder} as CardDetails).value = card_addr;
 
         // Increment active cards
         this.active_cards.value = this.active_cards.value + 1;
@@ -208,11 +265,11 @@ class Immersve extends Contract.extend(Ownable) {
 
     /**
      * Close account. This permanently removes the rekey and deletes the account from the ledger
-     * @param fundingChannel Funding Channel name
-     * @param depositor Address which has control over asset withdrawals
+     * @param partner Funding Channel name
+     * @param cardHolder Address which has control over asset withdrawals
      * @param card Address to close
      */
-    cardClose(fundingChannel: string, depositor: Address, card: Address): void {
+    cardClose(partner: string, asset: Asset, cardHolder: Address, card: Address): void {
         this.onlyOwner();
 
         sendPayment({
@@ -228,98 +285,10 @@ class Immersve extends Contract.extend(Ownable) {
         })
 
         // Delete the card from the box
-        this.cards({fundingChannel: fundingChannel, depositor: depositor} as FundingSource).delete();
+        this.cards({partner: partner, asset: asset, cardHolder: cardHolder} as CardDetails).delete();
 
         // Decrement active cards
         this.active_cards.value = this.active_cards.value - 1;
-    }
-
-    allowAsset(mbr: PayTxn, asset: Asset): void {
-        this.onlyOwner();
-
-        verifyPayTxn(mbr, {
-            receiver: this.app.address,
-            amount: globals.assetOptInMinBalance,
-        });
-
-        sendAssetTransfer({
-            sender: this.app.address,
-            assetReceiver: this.app.address,
-            xferAsset: asset,
-            assetAmount: 0,
-        });
-    }
-
-    revokeAsset(asset: Asset): void {
-        this.onlyOwner();
-
-        // Asset balance must be zero to close out of it
-        sendAssetTransfer({
-            sender: this.app.address,
-            assetReceiver: this.app.address,
-            assetCloseTo: this.app.address,
-            xferAsset: asset,
-            assetAmount: 0,
-        });
-
-        sendPayment({
-            sender: this.app.address,
-            receiver: this.txn.sender,
-            amount: globals.assetOptInMinBalance,
-        });
-    }
-
-    /**
-     * Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account
-     * @param fundingChannel Funding Channel name
-     * @param card Address to add asset to
-     * @param asset Asset to add
-     */
-    cardAddAsset(mbr: PayTxn, fundingChannel: string, card: Address, asset: Asset): void {
-        assert(this.isOwner() || this.isDepositor(fundingChannel, card));
-
-        assert(this.app.address.isOptedInToAsset(asset));
-
-        verifyPayTxn(mbr, {
-            receiver: this.app.address,
-            amount: globals.assetOptInMinBalance,
-        });
-
-        sendPayment({
-            receiver: card,
-            amount: globals.assetOptInMinBalance,
-        });
-
-        sendAssetTransfer({
-            sender: card,
-            assetReceiver: card,
-            xferAsset: asset,
-            assetAmount: 0,
-        });
-    }
-
-    /**
-     * Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account
-     * @param fundingChannel Funding Channel name
-     * @param card Address to remove asset from
-     * @param asset Asset to remove
-     */
-    cardRemoveAsset(fundingChannel: string, card: Address, asset: Asset): void {
-        assert(this.isOwner() || this.isDepositor(fundingChannel, card));
-
-        sendAssetTransfer({
-            sender: card,
-            assetReceiver: card,
-            assetCloseTo: card,
-            xferAsset: asset,
-            assetAmount: 0,
-        });
-
-        sendPayment({
-            sender: card,
-            receiver: this.txn.sender,
-            amount: globals.assetOptInMinBalance,
-        });
     }
 
     /**
@@ -341,7 +310,7 @@ class Immersve extends Contract.extend(Ownable) {
         });
 
         this.Debit.log({
-            fundingSource: card,
+            card: card,
             asset: asset,
             amount: amount,
         });
@@ -366,7 +335,7 @@ class Immersve extends Contract.extend(Ownable) {
         });
 
         this.Refund.log({
-            fundingSource: card,
+            card: card,
             asset: asset,
             amount: amount,
         });
@@ -397,8 +366,8 @@ class Immersve extends Contract.extend(Ownable) {
     }
 
     /**
-     * Allows the depositor to send an amount of assets from the account
-     * @param fundingChannel Funding Channel name
+     * Allows the Card Holder to send an amount of assets from the account
+     * @param partner Funding Channel name
      * @param card Address to withdraw from
      * @param asset Asset being withdrawn
      * @param amount Amount to withdraw
@@ -406,8 +375,8 @@ class Immersve extends Contract.extend(Ownable) {
      */
     @allow.call("NoOp")
     @allow.call("OptIn")
-    cardWithdrawalRequest(fundingChannel: string, card: Address, asset: Asset, amount: uint64): bytes32 {
-        assert(this.isDepositor(fundingChannel, card));
+    cardWithdrawalRequest(partner: string, asset: Asset, card: Address, amount: uint64): bytes32 {
+        assert(this.isCardHolder(partner, asset, card));
 
         const withdrawal: WithdrawalRequest = {
             nonce: this.withdrawal_nonce(this.txn.sender).value,
@@ -427,20 +396,20 @@ class Immersve extends Contract.extend(Ownable) {
     }
 
     /**
-     * Allows the depositor (or owner) to cancel a withdrawal request
-     * @param fundingChannel Funding Channel name
+     * Allows the Card Holder (or contract owner) to cancel a withdrawal request
+     * @param partner Funding Channel name
      * @param card Address to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
-    cardWithdrawalCancel(fundingChannel: string, card: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isDepositor(fundingChannel, card));
+    cardWithdrawalCancel(partner: string, asset: Asset, card: Address, withdrawal_hash: bytes32): void {
+        assert(this.isOwner() || this.isCardHolder(partner, asset, card));
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
 
     /**
-     * Allows the depositor to send an amount of assets from the account
-     * @param fundingChannel Funding Channel name
+     * Allows the Card Holder to send an amount of assets from the account
+     * @param partner Funding Channel name
      * @param card Address to withdraw from
      * @param recipient Receiver of the assets being withdrawn
      * @param asset Asset being withdrawn
@@ -448,8 +417,8 @@ class Immersve extends Contract.extend(Ownable) {
      */
     @allow.call("NoOp")
     @allow.call("CloseOut")
-    cardWithdraw(fundingChannel: string, card: Address, recipient: Address, asset: Asset, withdrawal_hash: bytes32): void {
-        assert(this.isDepositor(fundingChannel, card));
+    cardWithdraw(partner: string, asset: Asset, card: Address, recipient: Address, withdrawal_hash: bytes32): void {
+        assert(this.isCardHolder(partner, asset, card));
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
