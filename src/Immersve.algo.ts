@@ -24,10 +24,9 @@
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 
-// Card = Partner + Asset + Card Holder
+// Card = Partner + Card Holder
 type CardDetails = {
     partner: string,
-    asset: Asset,
     cardHolder: Address
 };
 
@@ -35,7 +34,6 @@ type CardDetails = {
 type WithdrawalRequest = {
     nonce: uint64,
     round: uint64,
-    asset: Asset,
     amount: uint64
 };
 
@@ -169,8 +167,8 @@ class Partner extends Contract.extend(Ownable) {
      * @param card Address to check
      * @returns True if the sender is the Card Holder of the card
      */
-    private isCardHolder(partner: string, asset: Asset, card: Address): boolean {
-        return this.cards({partner: partner, asset: asset, cardHolder: this.txn.sender} as CardDetails).value === card;
+    private isCardHolder(partner: string, card: Address): boolean {
+        return this.cards({partner: partner, cardHolder: this.txn.sender} as CardDetails).value === card;
     }
 
 
@@ -179,8 +177,11 @@ class Partner extends Contract.extend(Ownable) {
      * Deploy a Partner, setting the owner as provided
      */
     @allow.create("NoOp")
-    deploy(owner: Address): void {
+    deploy(owner: Address, asset: Asset): void {
         this._transferOwnership(owner);
+
+        // Set the asset
+        this.asset.value = asset;
     }
 
     /**
@@ -223,7 +224,7 @@ class Partner extends Contract.extend(Ownable) {
      * @param cardHolder Address to have control over asset withdrawals
      * @returns Newly generated account used by their card
      */
-    cardCreate(mbr: PayTxn, partner: string, asset: Asset, cardHolder: Address): Address {
+    cardCreate(mbr: PayTxn, partner: string, cardHolder: Address): Address {
         this.onlyOwner();
 
         verifyPayTxn(mbr, {
@@ -249,12 +250,12 @@ class Partner extends Contract.extend(Ownable) {
         sendAssetTransfer({
             sender: card_addr,
             assetReceiver: card_addr,
-            xferAsset: asset,
+            xferAsset: this.asset.value,
             assetAmount: 0,
         });
 
         // Store new card along with Card Holder
-        this.cards({partner: partner, asset: asset, cardHolder: cardHolder} as CardDetails).value = card_addr;
+        this.cards({partner: partner, cardHolder: cardHolder} as CardDetails).value = card_addr;
 
         // Increment active cards
         this.active_cards.value = this.active_cards.value + 1;
@@ -269,7 +270,7 @@ class Partner extends Contract.extend(Ownable) {
      * @param cardHolder Address which has control over asset withdrawals
      * @param card Address to close
      */
-    cardClose(partner: string, asset: Asset, cardHolder: Address, card: Address): void {
+    cardClose(partner: string, cardHolder: Address, card: Address): void {
         this.onlyOwner();
 
         sendPayment({
@@ -285,7 +286,7 @@ class Partner extends Contract.extend(Ownable) {
         })
 
         // Delete the card from the box
-        this.cards({partner: partner, asset: asset, cardHolder: cardHolder} as CardDetails).delete();
+        this.cards({partner: partner, cardHolder: cardHolder} as CardDetails).delete();
 
         // Decrement active cards
         this.active_cards.value = this.active_cards.value - 1;
@@ -296,22 +297,21 @@ class Partner extends Contract.extend(Ownable) {
      * Only the owner of the contract can perform this operation.
      * 
      * @param card The card account from which the asset will be debited.
-     * @param asset The asset to be debited.
      * @param amount The amount of the asset to be debited.
      */
-    cardDebit(card: Address, asset: Asset, amount: uint64): void {
+    cardDebit(card: Address, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
             sender: card,
             assetReceiver: this.app.address,
-            xferAsset: asset,
+            xferAsset: this.asset.value,
             assetAmount: amount,
         });
 
         this.Debit.log({
             card: card,
-            asset: asset,
+            asset: this.asset.value,
             amount: amount,
         });
     }
@@ -321,22 +321,21 @@ class Partner extends Contract.extend(Ownable) {
      * Only the owner of the contract can perform this operation.
      * 
      * @param card - The card account to refund the asset to.
-     * @param asset - The asset to refund.
      * @param amount - The amount of the asset to refund.
      */
-    cardRefund(card: Address, asset: Asset, amount: uint64): void {
+    cardRefund(card: Address, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
             sender: this.app.address,
             assetReceiver: card,
-            xferAsset: asset,
+            xferAsset: this.asset.value,
             assetAmount: amount,
         });
 
         this.Refund.log({
             card: card,
-            asset: asset,
+            asset: this.asset.value,
             amount: amount,
         });
     }
@@ -346,21 +345,20 @@ class Partner extends Contract.extend(Ownable) {
      * Only the owner of the contract can call this function.
      * 
      * @param recipient The address of the recipient.
-     * @param asset The asset to be transferred.
      * @param amount The amount of the asset to be transferred.
      */
-    settle(recipient: Address, asset: Asset, amount: uint64): void {
+    settle(recipient: Address, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
             sender: this.app.address,
             assetReceiver: recipient,
-            xferAsset: asset,
+            xferAsset: this.asset.value,
             assetAmount: amount,
         });
 
         this.Settlement.log({
-            asset: asset,
+            asset: this.asset.value,
             amount: amount,
         });
     }
@@ -369,19 +367,17 @@ class Partner extends Contract.extend(Ownable) {
      * Allows the Card Holder to send an amount of assets from the account
      * @param partner Funding Channel name
      * @param card Address to withdraw from
-     * @param asset Asset being withdrawn
      * @param amount Amount to withdraw
      * @returns Withdrawal hash used for completing or cancelling the withdrawal
      */
     @allow.call("NoOp")
     @allow.call("OptIn")
-    cardWithdrawalRequest(partner: string, asset: Asset, card: Address, amount: uint64): bytes32 {
-        assert(this.isCardHolder(partner, asset, card));
+    cardWithdrawalRequest(partner: string, card: Address, amount: uint64): bytes32 {
+        assert(this.isCardHolder(partner, card));
 
         const withdrawal: WithdrawalRequest = {
             nonce: this.withdrawal_nonce(this.txn.sender).value,
             round: globals.round + this.withdrawal_wait_time.value,
-            asset: asset,
             amount: amount,
         };
         this.withdrawal_nonce(this.txn.sender).value = this.withdrawal_nonce(this.txn.sender).value + 1;
@@ -401,8 +397,8 @@ class Partner extends Contract.extend(Ownable) {
      * @param card Address to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
-    cardWithdrawalCancel(partner: string, asset: Asset, card: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isCardHolder(partner, asset, card));
+    cardWithdrawalCancel(partner: string, card: Address, withdrawal_hash: bytes32): void {
+        assert(this.isOwner() || this.isCardHolder(partner, card));
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
@@ -412,13 +408,12 @@ class Partner extends Contract.extend(Ownable) {
      * @param partner Funding Channel name
      * @param card Address to withdraw from
      * @param recipient Receiver of the assets being withdrawn
-     * @param asset Asset being withdrawn
      * @param withdrawal_hash Hash of the withdrawal request
      */
     @allow.call("NoOp")
     @allow.call("CloseOut")
-    cardWithdraw(partner: string, asset: Asset, card: Address, recipient: Address, withdrawal_hash: bytes32): void {
-        assert(this.isCardHolder(partner, asset, card));
+    cardWithdraw(partner: string, card: Address, recipient: Address, withdrawal_hash: bytes32): void {
+        assert(this.isCardHolder(partner, card));
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
@@ -427,7 +422,7 @@ class Partner extends Contract.extend(Ownable) {
         sendAssetTransfer({
             sender: card,
             assetReceiver: recipient,
-            xferAsset: withdrawal.asset,
+            xferAsset: this.asset.value,
             assetAmount: withdrawal.amount,
         });
 

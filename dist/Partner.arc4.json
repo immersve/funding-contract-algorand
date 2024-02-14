@@ -31,6 +31,10 @@
         {
           "name": "owner",
           "type": "address"
+        },
+        {
+          "name": "asset",
+          "type": "asset"
         }
       ],
       "returns": {
@@ -80,10 +84,6 @@
           "type": "string"
         },
         {
-          "name": "asset",
-          "type": "asset"
-        },
-        {
           "name": "cardHolder",
           "type": "address",
           "desc": "Address to have control over asset withdrawals"
@@ -102,10 +102,6 @@
           "name": "partner",
           "type": "string",
           "desc": "Funding Channel name"
-        },
-        {
-          "name": "asset",
-          "type": "asset"
         },
         {
           "name": "cardHolder",
@@ -130,11 +126,6 @@
           "name": "card",
           "type": "address",
           "desc": "The card account from which the asset will be debited."
-        },
-        {
-          "name": "asset",
-          "type": "asset",
-          "desc": "The asset to be debited."
         },
         {
           "name": "amount",
@@ -179,11 +170,6 @@
           "desc": "The card account to refund the asset to."
         },
         {
-          "name": "asset",
-          "type": "asset",
-          "desc": "The asset to refund."
-        },
-        {
           "name": "amount",
           "type": "uint64",
           "desc": "The amount of the asset to refund."
@@ -226,11 +212,6 @@
           "desc": "The address of the recipient."
         },
         {
-          "name": "asset",
-          "type": "asset",
-          "desc": "The asset to be transferred."
-        },
-        {
           "name": "amount",
           "type": "uint64",
           "desc": "The amount of the asset to be transferred."
@@ -268,11 +249,6 @@
           "desc": "Funding Channel name"
         },
         {
-          "name": "asset",
-          "type": "asset",
-          "desc": "Asset being withdrawn"
-        },
-        {
           "name": "card",
           "type": "address",
           "desc": "Address to withdraw from"
@@ -298,10 +274,6 @@
           "desc": "Funding Channel name"
         },
         {
-          "name": "asset",
-          "type": "asset"
-        },
-        {
           "name": "card",
           "type": "address",
           "desc": "Address to withdraw from"
@@ -324,11 +296,6 @@
           "name": "partner",
           "type": "string",
           "desc": "Funding Channel name"
-        },
-        {
-          "name": "asset",
-          "type": "asset",
-          "desc": "Asset being withdrawn"
         },
         {
           "name": "card",
