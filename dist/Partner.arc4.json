@@ -38,7 +38,7 @@
         }
       ],
       "returns": {
-        "type": "void"
+        "type": "address"
       }
     },
     {

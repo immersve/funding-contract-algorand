@@ -55,9 +55,22 @@
     },
     {
       "name": "newPartner",
-      "args": [],
+      "args": [
+        {
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "name": "mbr",
+          "type": "pay"
+        },
+        {
+          "name": "asset",
+          "type": "asset"
+        }
+      ],
       "returns": {
-        "type": "void"
+        "type": "uint64"
       }
     }
   ],
