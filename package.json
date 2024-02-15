@@ -2,6 +2,12 @@
   "name": "Immersve Concept",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "compile": "tealscript src/Immersve.algo.ts dist/",
+    "generate-client": "algokit generate client dist/ --language typescript --output client/{contract_name}.client.ts",
+    "build": "bun run compile && bun run generate-client",
+    "test": "bun run build && bun test"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "jest": "^29.7.0"
@@ -11,6 +17,6 @@
   },
   "dependencies": {
     "@algorandfoundation/algokit-client-generator": "^2.6.0",
-    "@algorandfoundation/tealscript": "^0.82.1"
+    "@algorandfoundation/tealscript": "latest"
   }
 }

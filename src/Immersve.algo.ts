@@ -58,50 +58,6 @@ class Card extends Contract {
     }
 }
 
-//class PartnerFactory extends Contract.extend(Ownable) {
-//	// ========== External Methods ==========
-//    /**
-//     * Deploy the Partner Factory, setting the transaction sender as the owner
-//     */
-//    @allow.create("NoOp")
-//    deploy(owner: Address): void {
-//        this._transferOwnership(this.txn.sender);
-//    }
-//
-//    /**
-//     * Allows the owner to update the smart contract
-//     */
-//    @allow.call("UpdateApplication")
-//    update(): void {
-//        this.onlyOwner();
-//    }
-//
-//    /**
-//     * Destroy the smart contract, sending all Algo to the owner account
-//     */
-//    @allow.call("DeleteApplication")
-//    destroy(): void {
-//        this.onlyOwner();
-//
-//        sendPayment({
-//            receiver: this.app.address,
-//            amount: 0,
-//            closeRemainderTo: this.owner(),
-//        });
-//    }
-//
-//    // TODO
-//    newPartner(): void {
-//        sendMethodCall<[Address], void>({
-//            name: "deploy",
-//            //approvalProgram: Partner.approvalProgram(),
-//            //clearStateProgram: Partner.clearProgram(),
-//            methodArgs: [
-//                this.txn.sender
-//            ],
-//        });
-//    }
-//}
 
 class Partner extends Contract.extend(Ownable) {
 
@@ -428,4 +384,49 @@ class Partner extends Contract.extend(Ownable) {
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
+}
+
+
+class PartnerFactory extends Contract.extend(Ownable) {
+	// ========== External Methods ==========
+   /**
+    * Deploy the Partner Factory, setting the transaction sender as the owner
+    */
+   @allow.create("NoOp")
+   deploy(owner: Address): void {
+       this._transferOwnership(this.txn.sender);
+   }
+
+   /**
+    * Allows the owner to update the smart contract
+    */
+   @allow.call("UpdateApplication")
+   update(): void {
+       this.onlyOwner();
+   }
+
+   /**
+    * Destroy the smart contract, sending all Algo to the owner account
+    */
+   @allow.call("DeleteApplication")
+   destroy(): void {
+       this.onlyOwner();
+
+       sendPayment({
+           receiver: this.app.address,
+           amount: 0,
+           closeRemainderTo: this.owner(),
+       });
+   }
+
+   newPartner(): void {
+       sendMethodCall<[Address], void>({
+           name: "deploy",
+           approvalProgram: Partner.approvalProgram(),
+           clearStateProgram: Partner.clearProgram(),
+           methodArgs: [
+               this.txn.sender
+           ],
+       });
+   }
 }
