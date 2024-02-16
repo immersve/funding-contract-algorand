@@ -1,0 +1,95 @@
+{
+  "name": "BuggedPartnerFactory",
+  "desc": "",
+  "methods": [
+    {
+      "name": "owner",
+      "readonly": true,
+      "args": [],
+      "returns": {
+        "type": "address"
+      }
+    },
+    {
+      "name": "transferOwnership",
+      "desc": "Transfers the ownership of the contract to a new owner.Requires the caller to be the current owner.",
+      "args": [
+        {
+          "name": "newOwner",
+          "type": "address",
+          "desc": "The address of the new owner."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "deploy",
+      "desc": "Deploy the Partner Factory, setting the transaction sender as the owner",
+      "args": [
+        {
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "update",
+      "desc": "Allows the owner to update the smart contract",
+      "args": [],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "destroy",
+      "desc": "Destroy the smart contract, sending all Algo to the owner account",
+      "args": [],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "newPartner",
+      "args": [
+        {
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "name": "mbr",
+          "type": "pay"
+        },
+        {
+          "name": "asset",
+          "type": "asset"
+        }
+      ],
+      "returns": {
+        "type": "uint64"
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "OwnershipTransferred",
+      "args": [
+        {
+          "name": "previousOwner",
+          "type": "address",
+          "desc": "Previous owner address"
+        },
+        {
+          "name": "newOwner",
+          "type": "address",
+          "desc": "New owner address"
+        }
+      ],
+      "desc": "Event emitted when ownership of the contract is transferred."
+    }
+  ]
+}
