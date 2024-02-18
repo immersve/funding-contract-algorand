@@ -2,13 +2,11 @@ import { describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 import algosdk from 'algosdk';
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
-import { sendTransaction } from '@algorandfoundation/algokit-utils';
-import { PartnerFactoryClient } from '../client/PartnerFactory.client';
+import { sendTransaction, microAlgos } from '@algorandfoundation/algokit-utils';
 import { PartnerClient } from '../client/Partner.client';
 
 const fixture = algorandFixture();
 
-let factoryAppClient: PartnerFactoryClient;
 let appClient: PartnerClient;
 
 describe('Immersve', () => {
@@ -32,15 +30,6 @@ describe('Immersve', () => {
     ]);
     admin = testAccount;
     [depositor, circle] = newAccounts;
-
-    factoryAppClient = new PartnerFactoryClient(
-      {
-        sender: admin,
-        resolveBy: 'id',
-        id: 0,
-      },
-      algod
-    );
 
     // Crete FakeUSDC
     fakeUSDC = (
@@ -107,49 +96,20 @@ describe('Immersve', () => {
       algod
     );
 
-    // Deploy
-    await factoryAppClient.create.deploy({ owner: admin.addr });
+    appClient = new PartnerClient({
+      id: 0,
+      resolveBy: 'id',
+      sender: admin
+    }, algod);
 
-    // Fund Factory Address
-    await factoryAppClient.appClient.fundAppAccount({
-      sender: admin,
-      amount: AlgoAmount.MicroAlgos(100_000),
-    });
+    await appClient.create.deploy({ owner: admin.addr, asset: fakeUSDC })
+
+    await appClient.appClient.fundAppAccount({ amount: microAlgos(200_000) })
+
   });
 
-  test('Create new Partner contract', async () => {
-    const { algod } = fixture.context;
-    const { appAddress: factoryAddress } = await factoryAppClient.appClient.getAppReference();
-
-    const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      from: admin.addr,
-      to: factoryAddress,
-      amount: 200_000 + 235_500,
-      suggestedParams: await algod.getTransactionParams().do(),
-    });
-    const result = await factoryAppClient.newPartner(
-      {
-        owner: admin.addr,
-        asset: fakeUSDC,
-        mbr,
-      },
-      {
-        sendParams: {
-          fee: AlgoAmount.MicroAlgos(5_000),
-        },
-      }
-    );
-
-    expect(result.return).toBeDefined();
-
-    appClient = new PartnerClient(
-      {
-        sender: admin,
-        resolveBy: 'id',
-        id: result.return!,
-      },
-      algod
-    );
+  test('Create new partner', async () => {
+    await appClient.assetOptIn({}, { sendParams: { fee: microAlgos(2_000), populateAppCallResources: true } });
   });
 
   test('Set withdrawal rounds', async () => {

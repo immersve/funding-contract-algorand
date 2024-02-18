@@ -140,14 +140,6 @@ class Partner extends Contract.extend(Ownable) {
         // Set the asset
         this.asset.value = asset;
 
-        // PartnerFactory expects this rekey because it uses it to opt in the correct asset and mbr the spending addr.
-        // We expect PartnerFactory to rekey back to us.
-        sendPayment({
-            receiver: this.app.address,
-            amount: 0,
-            rekeyTo: globals.callerApplicationAddress,
-        });
-
         return this.app.address;
     }
 
@@ -184,6 +176,18 @@ class Partner extends Contract.extend(Ownable) {
         this.onlyOwner();
 
         this.withdrawal_wait_time.value = rounds;
+    }
+
+    /** 
+     * Opt in to the asset
+     */
+    assetOptIn(): void {
+        sendAssetTransfer({
+            sender: this.app.address,
+            assetReceiver: this.app.address,
+            xferAsset: this.asset.value,
+            assetAmount: 0,
+        });
     }
 
     /**
@@ -391,74 +395,5 @@ class Partner extends Contract.extend(Ownable) {
         });
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
-    }
-}
-
-class PartnerFactory extends Contract.extend(Ownable) {
-    // ========== External Methods ==========
-    /**
-     * Deploy the Partner Factory, setting the transaction sender as the owner
-     */
-    @allow.create('NoOp')
-    deploy(owner: Address): void {
-        this._transferOwnership(owner);
-    }
-
-    /**
-     * Allows the owner to update the smart contract
-     */
-    @allow.call('UpdateApplication')
-    update(): void {
-        this.onlyOwner();
-    }
-
-    /**
-     * Destroy the smart contract, sending all Algo to the owner account
-     */
-    @allow.call('DeleteApplication')
-    destroy(): void {
-        this.onlyOwner();
-
-        sendPayment({
-            receiver: this.app.address,
-            amount: 0,
-            closeRemainderTo: this.owner(),
-        });
-    }
-
-    newPartner(owner: Address, mbr: PayTxn, asset: Asset): Application {
-        verifyPayTxn(mbr, {
-            receiver: this.app.address,
-            amount: globals.minBalance + globals.assetOptInMinBalance + partner_sc_mbr,
-        });
-
-        // Deploy Partner contract.
-        const partnerAddress = sendMethodCall<[Address, Asset], Address>({
-            name: 'deploy',
-            approvalProgram: Partner.approvalProgram(),
-            clearStateProgram: Partner.clearProgram(),
-            globalNumUint: 3,
-            globalNumByteSlice: 1,
-            localNumUint: 1,
-            localNumByteSlice: 15,
-            methodArgs: [owner, asset],
-        });
-        const partnerID = this.itxn.createdApplicationID;
-
-        sendPayment({
-            receiver: partnerAddress,
-            amount: globals.minBalance + globals.assetOptInMinBalance,
-        });
-
-        // Opt-in to the asset and rekey back to itself.
-        sendAssetTransfer({
-            sender: partnerAddress,
-            assetReceiver: partnerAddress,
-            xferAsset: asset,
-            assetAmount: 0,
-            rekeyTo: partnerAddress,
-        });
-
-        return partnerID;
     }
 }

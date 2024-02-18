@@ -72,6 +72,14 @@
       }
     },
     {
+      "name": "assetOptIn",
+      "desc": "Opt in to the asset",
+      "args": [],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "cardCreate",
       "desc": "Create account. This generates a brand new account and funds the minimum balance requirement",
       "args": [
