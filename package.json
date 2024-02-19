@@ -25,6 +25,10 @@
   },
   "dependencies": {
     "@algorandfoundation/algokit-client-generator": "^2.6.0",
-    "@algorandfoundation/tealscript": "^0.85.0"
+    "@algorandfoundation/tealscript": "latest",
+    "@types/websocket": "^1.0.10",
+    "algo-msgpack-with-bigint": "^2.1.1",
+    "algosdk": "^2.7.0",
+    "websocket": "^1.0.34"
   }
 }
