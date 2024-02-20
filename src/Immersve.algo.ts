@@ -416,7 +416,7 @@ export class Master extends Contract.extend(Ownable) {
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
-        assert(globals.round >= withdrawal.round);
+        assert(globals.round >= withdrawal.round || this.isOwner());
 
         sendAssetTransfer({
             sender: card,
