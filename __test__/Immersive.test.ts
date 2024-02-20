@@ -96,20 +96,38 @@ describe('Immersve', () => {
       algod
     );
 
-    appClient = new PartnerClient({
-      id: 0,
-      resolveBy: 'id',
-      sender: admin
-    }, algod);
+    appClient = new PartnerClient(
+      {
+        id: 0,
+        resolveBy: 'id',
+        sender: admin,
+      },
+      algod
+    );
 
-    await appClient.create.deploy({ owner: admin.addr, asset: fakeUSDC })
+    await appClient.create.deploy({ owner: admin.addr, asset: fakeUSDC });
 
-    await appClient.appClient.fundAppAccount({ amount: microAlgos(200_000) })
-
+    await appClient.appClient.fundAppAccount({ amount: microAlgos(200_000) });
   });
 
   test('Create new partner', async () => {
-    await appClient.assetOptIn({}, { sendParams: { fee: microAlgos(2_000), populateAppCallResources: true } });
+    const { appAddress } = await appClient.appClient.getAppReference();
+    const { algod } = fixture.context;
+
+    // 2500 per box, 400 per byte: partner name + addr length + prefix
+    const boxCost = 2500 + 400 * ('Pera'.length + 32 + 1);
+
+    const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      from: admin.addr,
+      to: appAddress,
+      amount: 200_000 + boxCost,
+      suggestedParams: await algod.getTransactionParams().do(),
+    });
+
+    await appClient.partnerCreate(
+      { partner: 'Pera', mbr },
+      { sendParams: { fee: microAlgos(5_000), populateAppCallResources: true } }
+    );
   });
 
   test('Set withdrawal rounds', async () => {
@@ -171,6 +189,7 @@ describe('Immersve', () => {
       {
         amount: 5_000_000,
         card: newCardAddress,
+        partner: 'Pera',
       },
       {
         sendParams: {
@@ -208,6 +227,7 @@ describe('Immersve', () => {
       {
         amount: 5_000_000,
         recipient: circle.addr,
+        partner: 'Pera',
       },
       {
         sendParams: {

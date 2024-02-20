@@ -72,11 +72,20 @@
       }
     },
     {
-      "name": "assetOptIn",
-      "desc": "Opt in to the asset",
-      "args": [],
+      "name": "partnerCreate",
+      "desc": "Create a partner address that is controlled by this contract",
+      "args": [
+        {
+          "name": "mbr",
+          "type": "pay"
+        },
+        {
+          "name": "partner",
+          "type": "string"
+        }
+      ],
       "returns": {
-        "type": "void"
+        "type": "address"
       }
     },
     {
@@ -131,6 +140,10 @@
       "desc": "Debits the specified amount of the given asset from the card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
+          "name": "partner",
+          "type": "string"
+        },
+        {
           "name": "card",
           "type": "address",
           "desc": "The card account from which the asset will be debited."
@@ -173,6 +186,10 @@
       "desc": "Refunds a specified amount of an asset to a card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
+          "name": "partner",
+          "type": "string"
+        },
+        {
           "name": "card",
           "type": "address",
           "desc": "The card account to refund the asset to."
@@ -214,6 +231,10 @@
       "name": "settle",
       "desc": "Settles a payment by transferring an asset to the specified recipient.Only the owner of the contract can call this function.",
       "args": [
+        {
+          "name": "partner",
+          "type": "string"
+        },
         {
           "name": "recipient",
           "type": "address",

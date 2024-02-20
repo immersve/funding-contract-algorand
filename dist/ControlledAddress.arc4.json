@@ -1,0 +1,15 @@
+{
+  "name": "ControlledAddress",
+  "desc": "",
+  "methods": [
+    {
+      "name": "new",
+      "desc": "Create a new account, rekeying it to the caller application address",
+      "args": [],
+      "returns": {
+        "type": "address",
+        "desc": "New account address"
+      }
+    }
+  ]
+}

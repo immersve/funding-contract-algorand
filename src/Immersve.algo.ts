@@ -47,7 +47,7 @@ const box_mbr = 44_100;
 // 100_000 + 4*25_000 + 3*3_500 + 25_000
 const partner_sc_mbr = 235_500;
 
-class Card extends Contract {
+class ControlledAddress extends Contract {
   /**
    * Create a new account, rekeying it to the caller application address
    * @returns New account address
@@ -67,9 +67,12 @@ class Card extends Contract {
 class Partner extends Contract.extend(Ownable) {
   // ========== Storage ==========
   // Cards
-  cards = BoxMap<CardDetails, Address>({});
+  cards = BoxMap<CardDetails, Address>({ prefix: 'c' });
 
   active_cards = GlobalStateKey<uint64>({ key: 'c' });
+
+  // Partner addresses
+  partners = BoxMap<string, Address>({ prefix: 'p' });
 
   // Asset
   asset = GlobalStateKey<Asset>({ key: 'a' });
@@ -180,16 +183,42 @@ class Partner extends Contract.extend(Ownable) {
     this.withdrawal_wait_time.value = rounds;
   }
 
-  /**
-   * Opt in to the asset
-   */
-  assetOptIn(): void {
+  /** Create a partner address that is controlled by this contract */
+  partnerCreate(mbr: PayTxn, partner: string): Address {
+    this.onlyOwner();
+
+    const boxCost = 2500 + 400 * (partner.length + 32 + 400);
+
+    verifyPayTxn(mbr, {
+      receiver: this.app.address,
+      amount: globals.minBalance + globals.assetOptInMinBalance + boxCost,
+    });
+
+    // Create a new account
+    const partnerAddr = sendMethodCall<[], Address>({
+      name: 'new',
+      onCompletion: OnCompletion.DeleteApplication,
+      approvalProgram: ControlledAddress.approvalProgram(),
+      clearStateProgram: ControlledAddress.clearProgram(),
+    });
+
+    // Fund the account with a minimum balance for opting into the asset
+    sendPayment({
+      receiver: partnerAddr,
+      amount: globals.minBalance + globals.assetOptInMinBalance,
+    });
+
+    // Opt-in to the asset
     sendAssetTransfer({
-      sender: this.app.address,
-      assetReceiver: this.app.address,
+      sender: partnerAddr,
+      assetReceiver: partnerAddr,
       xferAsset: this.asset.value,
       assetAmount: 0,
     });
+
+    this.partners(partner).value = partnerAddr;
+
+    return partnerAddr;
   }
 
   /**
@@ -200,6 +229,8 @@ class Partner extends Contract.extend(Ownable) {
   cardCreate(mbr: PayTxn, partner: string, cardHolder: Address): Address {
     this.onlyOwner();
 
+    assert(this.partners(partner).exists);
+
     verifyPayTxn(mbr, {
       receiver: this.app.address,
       amount: globals.minBalance + globals.assetOptInMinBalance + box_mbr,
@@ -209,8 +240,8 @@ class Partner extends Contract.extend(Ownable) {
     const card_addr = sendMethodCall<[], Address>({
       name: 'new',
       onCompletion: OnCompletion.DeleteApplication,
-      approvalProgram: Card.approvalProgram(),
-      clearStateProgram: Card.clearProgram(),
+      approvalProgram: ControlledAddress.approvalProgram(),
+      clearStateProgram: ControlledAddress.clearProgram(),
     });
 
     // Fund the account with a minimum balance for opting into the asset
@@ -272,12 +303,12 @@ class Partner extends Contract.extend(Ownable) {
    * @param card The card account from which the asset will be debited.
    * @param amount The amount of the asset to be debited.
    */
-  cardDebit(card: Address, amount: uint64): void {
+  cardDebit(partner: string, card: Address, amount: uint64): void {
     this.onlyOwner();
 
     sendAssetTransfer({
       sender: card,
-      assetReceiver: this.app.address,
+      assetReceiver: this.partners(partner).value,
       xferAsset: this.asset.value,
       assetAmount: amount,
     });
@@ -296,11 +327,11 @@ class Partner extends Contract.extend(Ownable) {
    * @param card - The card account to refund the asset to.
    * @param amount - The amount of the asset to refund.
    */
-  cardRefund(card: Address, amount: uint64): void {
+  cardRefund(partner: string, card: Address, amount: uint64): void {
     this.onlyOwner();
 
     sendAssetTransfer({
-      sender: this.app.address,
+      sender: this.partners(partner).value,
       assetReceiver: card,
       xferAsset: this.asset.value,
       assetAmount: amount,
@@ -320,11 +351,11 @@ class Partner extends Contract.extend(Ownable) {
    * @param recipient The address of the recipient.
    * @param amount The amount of the asset to be transferred.
    */
-  settle(recipient: Address, amount: uint64): void {
+  settle(partner: string, recipient: Address, amount: uint64): void {
     this.onlyOwner();
 
     sendAssetTransfer({
-      sender: this.app.address,
+      sender: this.partners(partner).value,
       assetReceiver: recipient,
       xferAsset: this.asset.value,
       assetAmount: amount,
