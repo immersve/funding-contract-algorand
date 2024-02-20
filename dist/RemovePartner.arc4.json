@@ -1,5 +1,5 @@
 {
-  "name": "Partner",
+  "name": "RemovePartner",
   "desc": "",
   "methods": [
     {
@@ -340,6 +340,18 @@
           "name": "withdrawal_hash",
           "type": "byte[32]",
           "desc": "Hash of the withdrawal request"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "removePartner",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string"
         }
       ],
       "returns": {

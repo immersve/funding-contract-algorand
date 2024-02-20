@@ -1519,6 +1519,35 @@ cardWithdraw:
 	app_local_del
 	retsub
 
+// removePartner(string)void
+*abi_route_removePartner:
+	// partner: string
+	txna ApplicationArgs 1
+	extract 2 0
+
+	// execute removePartner(string)void
+	callsub removePartner
+	int 1
+	return
+
+// removePartner(partner: string): void
+removePartner:
+	proto 1 0
+
+	// src/Immersve.algo.ts:436
+	// this.partners(partner).delete()
+	byte 0x70 // "p"
+	frame_dig -1 // partner: string
+	dup
+	len
+	itob
+	extract 6 2
+	swap
+	concat
+	concat
+	box_del
+	retsub
+
 *create_NoOp:
 	method "deploy(address,asset)address"
 	txna ApplicationArgs 0
@@ -1538,8 +1567,9 @@ cardWithdraw:
 	method "cardWithdrawalRequest(string,address,uint64)byte[32]"
 	method "cardWithdrawalCancel(string,address,byte[32])void"
 	method "cardWithdraw(string,address,address,byte[32])void"
+	method "removePartner(string)void"
 	txna ApplicationArgs 0
-	match *abi_route_owner *abi_route_transferOwnership *abi_route_setWithdrawalRounds *abi_route_partnerCreate *abi_route_cardCreate *abi_route_cardClose *abi_route_cardDebit *abi_route_cardRefund *abi_route_settle *abi_route_cardWithdrawalRequest *abi_route_cardWithdrawalCancel *abi_route_cardWithdraw
+	match *abi_route_owner *abi_route_transferOwnership *abi_route_setWithdrawalRounds *abi_route_partnerCreate *abi_route_cardCreate *abi_route_cardClose *abi_route_cardDebit *abi_route_cardRefund *abi_route_settle *abi_route_cardWithdrawalRequest *abi_route_cardWithdrawalCancel *abi_route_cardWithdraw *abi_route_removePartner
 	err
 
 *call_OptIn:
