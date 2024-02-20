@@ -3,12 +3,12 @@ import algosdk from 'algosdk';
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
 import { sendTransaction, microAlgos, sendAtomicTransactionComposer } from '@algorandfoundation/algokit-utils';
-import { PartnerClient } from '../client/PartnerClient';
+import { MasterClient } from '../client/MasterClient';
 import { RemovePartnerClient } from '../client/RemovePartnerClient';
 
 const fixture = algorandFixture();
 
-let appClient: PartnerClient;
+let appClient: MasterClient;
 
 describe('Immersve', () => {
   beforeEach(fixture.beforeEach);
@@ -97,7 +97,7 @@ describe('Immersve', () => {
       algod
     );
 
-    appClient = new PartnerClient(
+    appClient = new MasterClient(
       {
         id: 0,
         resolveBy: 'id',

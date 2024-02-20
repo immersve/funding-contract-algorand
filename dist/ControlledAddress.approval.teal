@@ -42,10 +42,10 @@ new:
 
 	// src/Immersve.algo.ts:57
 	// sendPayment({
-	//       receiver: this.app.address,
-	//       amount: 0,
-	//       rekeyTo: globals.callerApplicationAddress,
-	//     })
+	//             receiver: this.app.address,
+	//             amount: 0,
+	//             rekeyTo: globals.callerApplicationAddress,
+	//         })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum

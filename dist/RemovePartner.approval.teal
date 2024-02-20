@@ -279,10 +279,10 @@ destroy:
 
 	// src/Immersve.algo.ts:169
 	// sendPayment({
-	//       receiver: this.app.address,
-	//       amount: 0,
-	//       closeRemainderTo: this.owner(),
-	//     })
+	//             receiver: this.app.address,
+	//             amount: 0,
+	//             closeRemainderTo: this.owner(),
+	//         })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
@@ -395,9 +395,9 @@ partnerCreate:
 
 	// src/Immersve.algo.ts:192
 	// verifyPayTxn(mbr, {
-	//       receiver: this.app.address,
-	//       amount: globals.minBalance + globals.assetOptInMinBalance + boxCost,
-	//     })
+	//             receiver: this.app.address,
+	//             amount: globals.minBalance + globals.assetOptInMinBalance + boxCost,
+	//         })
 	// verify receiver
 	frame_dig -1 // mbr: PayTxn
 	gtxns Receiver
@@ -418,11 +418,11 @@ partnerCreate:
 
 	// src/Immersve.algo.ts:198
 	// partnerAddr = sendMethodCall<[], Address>({
-	//       name: 'new',
-	//       onCompletion: OnCompletion.DeleteApplication,
-	//       approvalProgram: ControlledAddress.approvalProgram(),
-	//       clearStateProgram: ControlledAddress.clearProgram(),
-	//     })
+	//             name: 'new',
+	//             onCompletion: OnCompletion.DeleteApplication,
+	//             approvalProgram: ControlledAddress.approvalProgram(),
+	//             clearStateProgram: ControlledAddress.clearProgram(),
+	//         })
 	itxn_begin
 	int appl
 	itxn_field TypeEnum
@@ -459,9 +459,9 @@ partnerCreate:
 
 	// src/Immersve.algo.ts:206
 	// sendPayment({
-	//       receiver: partnerAddr,
-	//       amount: globals.minBalance + globals.assetOptInMinBalance,
-	//     })
+	//             receiver: partnerAddr,
+	//             amount: globals.minBalance + globals.assetOptInMinBalance,
+	//         })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
@@ -487,11 +487,11 @@ partnerCreate:
 
 	// src/Immersve.algo.ts:212
 	// sendAssetTransfer({
-	//       sender: partnerAddr,
-	//       assetReceiver: partnerAddr,
-	//       xferAsset: this.asset.value,
-	//       assetAmount: 0,
-	//     })
+	//             sender: partnerAddr,
+	//             assetReceiver: partnerAddr,
+	//             xferAsset: this.asset.value,
+	//             assetAmount: 0,
+	//         })
 	itxn_begin
 	int axfer
 	itxn_field TypeEnum
@@ -616,9 +616,9 @@ cardCreate:
 
 	// src/Immersve.algo.ts:234
 	// verifyPayTxn(mbr, {
-	//       receiver: this.app.address,
-	//       amount: globals.minBalance + globals.assetOptInMinBalance + box_mbr,
-	//     })
+	//             receiver: this.app.address,
+	//             amount: globals.minBalance + globals.assetOptInMinBalance + box_mbr,
+	//         })
 	// verify receiver
 	frame_dig -1 // mbr: PayTxn
 	gtxns Receiver
@@ -639,11 +639,11 @@ cardCreate:
 
 	// src/Immersve.algo.ts:240
 	// card_addr = sendMethodCall<[], Address>({
-	//       name: 'new',
-	//       onCompletion: OnCompletion.DeleteApplication,
-	//       approvalProgram: ControlledAddress.approvalProgram(),
-	//       clearStateProgram: ControlledAddress.clearProgram(),
-	//     })
+	//             name: 'new',
+	//             onCompletion: OnCompletion.DeleteApplication,
+	//             approvalProgram: ControlledAddress.approvalProgram(),
+	//             clearStateProgram: ControlledAddress.clearProgram(),
+	//         })
 	itxn_begin
 	int appl
 	itxn_field TypeEnum
@@ -680,9 +680,9 @@ cardCreate:
 
 	// src/Immersve.algo.ts:248
 	// sendPayment({
-	//       receiver: card_addr,
-	//       amount: globals.minBalance + globals.assetOptInMinBalance,
-	//     })
+	//             receiver: card_addr,
+	//             amount: globals.minBalance + globals.assetOptInMinBalance,
+	//         })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
@@ -708,11 +708,11 @@ cardCreate:
 
 	// src/Immersve.algo.ts:254
 	// sendAssetTransfer({
-	//       sender: card_addr,
-	//       assetReceiver: card_addr,
-	//       xferAsset: this.asset.value,
-	//       assetAmount: 0,
-	//     })
+	//             sender: card_addr,
+	//             assetReceiver: card_addr,
+	//             xferAsset: this.asset.value,
+	//             assetAmount: 0,
+	//         })
 	itxn_begin
 	int axfer
 	itxn_field TypeEnum
@@ -826,11 +826,11 @@ cardClose:
 
 	// src/Immersve.algo.ts:280
 	// sendPayment({
-	//       sender: card,
-	//       receiver: card,
-	//       amount: 0,
-	//       closeRemainderTo: this.txn.sender,
-	//     })
+	//             sender: card,
+	//             receiver: card,
+	//             amount: 0,
+	//             closeRemainderTo: this.txn.sender,
+	//         })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
@@ -864,9 +864,9 @@ cardClose:
 
 	// src/Immersve.algo.ts:287
 	// sendPayment({
-	//       receiver: this.txn.sender,
-	//       amount: box_mbr,
-	//     })
+	//             receiver: this.txn.sender,
+	//             amount: box_mbr,
+	//         })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
@@ -958,11 +958,11 @@ cardDebit:
 
 	// src/Immersve.algo.ts:309
 	// sendAssetTransfer({
-	//       sender: card,
-	//       assetReceiver: this.partners(partner).value,
-	//       xferAsset: this.asset.value,
-	//       assetAmount: amount,
-	//     })
+	//             sender: card,
+	//             assetReceiver: this.partners(partner).value,
+	//             xferAsset: this.asset.value,
+	//             assetAmount: amount,
+	//         })
 	itxn_begin
 	int axfer
 	itxn_field TypeEnum
@@ -1007,10 +1007,10 @@ cardDebit:
 
 	// src/Immersve.algo.ts:316
 	// this.Debit.log({
-	//       card: card,
-	//       asset: this.asset.value,
-	//       amount: amount,
-	//     })
+	//             card: card,
+	//             asset: this.asset.value,
+	//             amount: amount,
+	//         })
 	byte 0x6e40a4c4 // Debit(address,uint64,uint64)
 	frame_dig -2 // card: Address
 	byte 0x61 // "a"
@@ -1063,11 +1063,11 @@ cardRefund:
 
 	// src/Immersve.algo.ts:333
 	// sendAssetTransfer({
-	//       sender: this.partners(partner).value,
-	//       assetReceiver: card,
-	//       xferAsset: this.asset.value,
-	//       assetAmount: amount,
-	//     })
+	//             sender: this.partners(partner).value,
+	//             assetReceiver: card,
+	//             xferAsset: this.asset.value,
+	//             assetAmount: amount,
+	//         })
 	itxn_begin
 	int axfer
 	itxn_field TypeEnum
@@ -1112,10 +1112,10 @@ cardRefund:
 
 	// src/Immersve.algo.ts:340
 	// this.Refund.log({
-	//       card: card,
-	//       asset: this.asset.value,
-	//       amount: amount,
-	//     })
+	//             card: card,
+	//             asset: this.asset.value,
+	//             amount: amount,
+	//         })
 	byte 0xf4f52ad3 // Refund(address,uint64,uint64)
 	frame_dig -2 // card: Address
 	byte 0x61 // "a"
@@ -1168,11 +1168,11 @@ settle:
 
 	// src/Immersve.algo.ts:357
 	// sendAssetTransfer({
-	//       sender: this.partners(partner).value,
-	//       assetReceiver: recipient,
-	//       xferAsset: this.asset.value,
-	//       assetAmount: amount,
-	//     })
+	//             sender: this.partners(partner).value,
+	//             assetReceiver: recipient,
+	//             xferAsset: this.asset.value,
+	//             assetAmount: amount,
+	//         })
 	itxn_begin
 	int axfer
 	itxn_field TypeEnum
@@ -1217,9 +1217,9 @@ settle:
 
 	// src/Immersve.algo.ts:364
 	// this.Settlement.log({
-	//       asset: this.asset.value,
-	//       amount: amount,
-	//     })
+	//             asset: this.asset.value,
+	//             amount: amount,
+	//         })
 	byte 0x8b66e589 // Settlement(uint64,uint64)
 	byte 0x61 // "a"
 	app_global_get
@@ -1282,10 +1282,10 @@ cardWithdrawalRequest:
 
 	// src/Immersve.algo.ts:382
 	// withdrawal: WithdrawalRequest = {
-	//       nonce: this.withdrawal_nonce(this.txn.sender).value,
-	//       round: globals.round + this.withdrawal_wait_time.value,
-	//       amount: amount,
-	//     }
+	//             nonce: this.withdrawal_nonce(this.txn.sender).value,
+	//             round: globals.round + this.withdrawal_wait_time.value,
+	//             amount: amount,
+	//         }
 	txn Sender
 	byte 0x6e // "n"
 	app_local_get
@@ -1471,11 +1471,11 @@ cardWithdraw:
 
 	// src/Immersve.algo.ts:423
 	// sendAssetTransfer({
-	//       sender: card,
-	//       assetReceiver: recipient,
-	//       xferAsset: this.asset.value,
-	//       assetAmount: withdrawal.amount,
-	//     })
+	//             sender: card,
+	//             assetReceiver: recipient,
+	//             xferAsset: this.asset.value,
+	//             assetAmount: withdrawal.amount,
+	//         })
 	itxn_begin
 	int axfer
 	itxn_field TypeEnum
