@@ -380,14 +380,14 @@ partnerCreate:
 	callsub onlyOwner
 
 	// src/Immersve.algo.ts:190
-	// boxCost = 2500 + 400 * (partner.length + 32 + 400)
+	// boxCost = 2500 + 400 * (partner.length + 32 + 1)
 	int 2500
 	int 400
 	frame_dig -2 // partner: string
 	len
 	int 32
 	+
-	int 400
+	int 1
 	+
 	*
 	+

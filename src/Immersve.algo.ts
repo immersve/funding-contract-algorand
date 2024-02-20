@@ -187,7 +187,7 @@ class Partner extends Contract.extend(Ownable) {
   partnerCreate(mbr: PayTxn, partner: string): Address {
     this.onlyOwner();
 
-    const boxCost = 2500 + 400 * (partner.length + 32 + 400);
+    const boxCost = 2500 + 400 * (partner.length + 32 + 1);
 
     verifyPayTxn(mbr, {
       receiver: this.app.address,
