@@ -2,8 +2,9 @@ import { describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 import algosdk from 'algosdk';
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
-import { sendTransaction, microAlgos } from '@algorandfoundation/algokit-utils';
+import { sendTransaction, microAlgos, sendAtomicTransactionComposer } from '@algorandfoundation/algokit-utils';
 import { PartnerClient } from '../client/PartnerClient';
+import { RemovePartnerClient } from '../client/RemovePartnerClient';
 
 const fixture = algorandFixture();
 
@@ -260,5 +261,28 @@ describe('Immersve', () => {
     expect(result.confirmation!.poolError).toBe('');
   });
 
-  test('Update & remove partner', async () => {});
+  test('Update & remove partner', async () => {
+    const { appId } = await appClient.appClient.getAppReference();
+    const { algod } = fixture.context;
+    const newClient = new RemovePartnerClient(
+      {
+        id: appId,
+        resolveBy: 'id',
+        sender: admin,
+      },
+      algod
+    );
+
+    let errorThrown = false;
+    try {
+      await newClient.removePartner({ partner: 'Pera' }, { sendParams: { populateAppCallResources: true } });
+    } catch (e) {
+      errorThrown = true;
+    }
+
+    expect(errorThrown).toBe(true);
+
+    await newClient.update.update({});
+    await newClient.removePartner({ partner: 'Pera' }, { sendParams: { populateAppCallResources: true } });
+  });
 });
