@@ -195,8 +195,7 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         // Create a new account
-        const partnerAddr = sendMethodCall<[], Address>({
-            name: 'new',
+        const partnerAddr = sendMethodCall<typeof ControlledAddress.prototype.new>({
             onCompletion: OnCompletion.DeleteApplication,
             approvalProgram: ControlledAddress.approvalProgram(),
             clearStateProgram: ControlledAddress.clearProgram(),
@@ -237,8 +236,7 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         // Create a new account
-        const card_addr = sendMethodCall<[], Address>({
-            name: 'new',
+        const card_addr = sendMethodCall<typeof ControlledAddress.prototype.new>({
             onCompletion: OnCompletion.DeleteApplication,
             approvalProgram: ControlledAddress.approvalProgram(),
             clearStateProgram: ControlledAddress.clearProgram(),
