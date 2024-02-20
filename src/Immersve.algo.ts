@@ -64,7 +64,7 @@ class ControlledAddress extends Contract {
   }
 }
 
-class Partner extends Contract.extend(Ownable) {
+export class Partner extends Contract.extend(Ownable) {
   // ========== Storage ==========
   // Cards
   cards = BoxMap<CardDetails, Address>({ prefix: 'c' });
@@ -428,5 +428,11 @@ class Partner extends Contract.extend(Ownable) {
     });
 
     this.withdrawals(this.txn.sender, withdrawal_hash).delete();
+  }
+}
+
+class RemovePartner extends Partner {
+  removePartner(partner: string) {
+    this.partners(partner).delete();
   }
 }

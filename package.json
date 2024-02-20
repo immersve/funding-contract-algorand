@@ -3,15 +3,9 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "compile": "tealscript src/Immersve.algo.ts dist/",
-    "compile:bugged": "tealscript src/BuggedImmersive.algo.ts dist/",
-
-    "generate-client": "algokit generate client dist/PartnerFactory.arc32.json --language typescript --output client/PartnerFactory.client.ts && algokit generate client dist/Partner.arc32.json --language typescript --output client/Partner.client.ts",
-    "generate-client:bugged": "algokit generate client dist/BuggedPartnerFactory.arc32.json --language typescript --output client/BuggedPartnerFactory.client.ts && algokit generate client dist/BuggedPartner.arc32.json --language typescript --output client/BuggedPartner.client.ts",
-
-    "build": "bun run compile && bun run generate-client",
-    "build:bugged": "bun run compile:bugged && bun run generate-client:bugged",
-
+    "compile-contracts": "tealscript src/*.algo.ts dist/",
+    "generate-clients": "algokit generate client dist/ --language typescript  --output client/{contract_name}Client.ts",
+    "build": "bun run compile-contracts && bun run generate-clients",
     "test": "bun run build && bun test __test__/Immersive.test.ts",
     "test:bugged": "bun run build:bugged && bun test __test__/BuggedImmersive.test.ts"
   },
@@ -31,6 +25,6 @@
   },
   "dependencies": {
     "@algorandfoundation/algokit-client-generator": "^2.6.0",
-    "@algorandfoundation/tealscript": "latest"
+    "@algorandfoundation/tealscript": "^0.85.0"
   }
 }

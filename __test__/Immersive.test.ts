@@ -3,7 +3,7 @@ import algosdk from 'algosdk';
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
 import { sendTransaction, microAlgos } from '@algorandfoundation/algokit-utils';
-import { PartnerClient } from '../client/Partner.client';
+import { PartnerClient } from '../client/PartnerClient';
 
 const fixture = algorandFixture();
 
@@ -259,4 +259,6 @@ describe('Immersve', () => {
 
     expect(result.confirmation!.poolError).toBe('');
   });
+
+  test('Update & remove partner', async () => {});
 });
