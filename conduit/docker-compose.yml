@@ -1,0 +1,36 @@
+name: "immersve"
+
+services:
+  algod:
+    container_name: immersve_algod
+    image: algorand/algod:latest
+    ports:
+      # algod
+      - 4001:8080
+      # kmd
+      - 4002:7833
+    environment:
+      START_KMD: 1
+      KMD_TOKEN: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      TOKEN: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      ADMIN_TOKEN: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      GOSSIP_PORT: 10000
+    volumes:
+      # This config starts a network with two nodes. One for sending txns and a follower node.
+      - ./configs/template.json:/etc/algorand/template.json:ro
+
+  conduit:
+    container_name: immerve_conduit
+    build:
+      context: ./images/conduit
+      args:
+        - repo=joe-p/conduit
+        - ref=websocket
+    restart: unless-stopped
+    volumes:
+      - ./configs/conduit.yml:/data/conduit.yml:ro
+    depends_on:
+      - algod
+    ports:
+      # conduit websocket
+      - 8888:8888
