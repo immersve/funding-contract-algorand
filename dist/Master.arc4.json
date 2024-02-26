@@ -148,14 +148,17 @@
     },
     {
       "name": "acceptAsset",
+      "desc": "Allows the master contract to flag intent of accepting an asset.This can be considered the whitelists whitelist.",
       "args": [
         {
           "name": "mbr",
-          "type": "pay"
+          "type": "pay",
+          "desc": "Payment transaction of minimum balance requirement"
         },
         {
           "name": "asset",
-          "type": "uint64"
+          "type": "uint64",
+          "desc": "The AssetID of the asset being transferred."
         }
       ],
       "returns": {
@@ -164,10 +167,12 @@
     },
     {
       "name": "rejectAsset",
+      "desc": "Allows the master contract to reject accepting an asset.",
       "args": [
         {
           "name": "asset",
-          "type": "uint64"
+          "type": "uint64",
+          "desc": "The AssetID of the asset being transferred."
         }
       ],
       "returns": {
@@ -176,7 +181,7 @@
     },
     {
       "name": "partnerAcceptAsset",
-      "desc": "Allows the specified asset to be transferred.",
+      "desc": "Allows the specified asset to be transferred for users of this partner.",
       "args": [
         {
           "name": "mbr",
