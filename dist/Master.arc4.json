@@ -147,6 +147,30 @@
       }
     },
     {
+      "name": "cardRecover",
+      "desc": "Recovers funds from an old card and transfers them to a new card.Only the owner of the contract can perform this operation.",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "The partner associated with the cards."
+        },
+        {
+          "name": "oldCardHolder",
+          "type": "address",
+          "desc": "The address of the old card holder."
+        },
+        {
+          "name": "newCardHolder",
+          "type": "address",
+          "desc": "The address of the new card holder."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "assetAllowlistAdd",
       "desc": "Allows the master contract to flag intent of accepting an asset.This can be considered the whitelists whitelist.",
       "args": [

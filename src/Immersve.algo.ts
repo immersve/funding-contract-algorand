@@ -313,6 +313,24 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
+     * Recovers funds from an old card and transfers them to a new card.
+     * Only the owner of the contract can perform this operation.
+     * 
+     * @param partner - The partner associated with the cards.
+     * @param oldCardHolder - The address of the old card holder.
+     * @param newCardHolder - The address of the new card holder.
+     */
+    cardRecover(partner: string, oldCardHolder: Address, newCardHolder: Address): void {
+        this.onlyOwner();
+
+        const oldCardFunds: CardDetails = { partner: partner, cardHolder: oldCardHolder };
+        const newCardFunds: CardDetails = { partner: partner, cardHolder: newCardHolder };
+        this.cards(newCardFunds).value = this.cards(oldCardFunds).value;
+
+        this.cards(oldCardFunds).delete();
+    }
+
+    /**
      * Allows the master contract to flag intent of accepting an asset.
      * This can be considered the whitelists whitelist.
      *

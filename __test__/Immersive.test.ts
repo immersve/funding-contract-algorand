@@ -16,6 +16,7 @@ describe('Immersve', () => {
     let circle: algosdk.Account;
     let immersve: algosdk.Account;
     let user: algosdk.Account;
+    let user2: algosdk.Account;
 
     let fakeUSDC: number;
     let newCardAddress: string;
@@ -25,7 +26,8 @@ describe('Immersve', () => {
         await fixture.beforeEach();
         const { algod, generateAccount } = fixture.context;
 
-        [immersve, user, circle] = await Promise.all([
+        [immersve, user, user2, circle] = await Promise.all([
+            generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
@@ -78,6 +80,19 @@ describe('Immersve', () => {
                         suggestedParams: await algod.getTransactionParams().do(),
                     }),
                     from: user,
+                },
+                algod
+            ),
+            sendTransaction(
+                {
+                    transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+                        from: user2.addr,
+                        to: user2.addr,
+                        assetIndex: fakeUSDC,
+                        amount: 0,
+                        suggestedParams: await algod.getTransactionParams().do(),
+                    }),
+                    from: user2,
                 },
                 algod
             ),
@@ -292,6 +307,24 @@ describe('Immersve', () => {
         expect(result.confirmation!.poolError).toBeDefined();
     });
 
+    test('Recover Card', async () => {
+        const result = await appClient.cardRecover(
+            {
+                partner: 'Pera',
+                oldCardHolder: user.addr,
+                newCardHolder: user2.addr,
+            },
+            {
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
     test('User creates withdrawal request', async () => {
         const result = await appClient.optIn.cardWithdrawalRequest(
             {
@@ -301,7 +334,7 @@ describe('Immersve', () => {
                 amount: 5_000_000,
             },
             {
-                sender: user,
+                sender: user2,
                 sendParams: {
                     populateAppCallResources: true,
                 },
@@ -336,11 +369,11 @@ describe('Immersve', () => {
             {
                 partner: 'Pera',
                 card: newCardAddress,
-                recipient: user.addr,
+                recipient: user2.addr,
                 withdrawal_hash: withdrawalRequest,
             },
             {
-                sender: user,
+                sender: user2,
                 sendParams: {
                     fee: AlgoAmount.MicroAlgos(2_000),
                     populateAppCallResources: true,
@@ -359,7 +392,7 @@ describe('Immersve', () => {
                 asset: fakeUSDC,
             },
             {
-                sender: user,
+                sender: user2,
                 sendParams: {
                     fee: microAlgos(3_000),
                     populateAppCallResources: true,
@@ -374,7 +407,7 @@ describe('Immersve', () => {
         const result = await appClient.cardClose(
             {
                 partner: 'Pera',
-                cardHolder: user.addr,
+                cardHolder: user2.addr,
                 card: newCardAddress,
             },
             {
@@ -450,32 +483,4 @@ describe('Immersve', () => {
 
         expect(result.confirmation!.poolError).toBe('');
     });
-
-    /*
-  TODO: Close properly
-  test('Update & remove partner', async () => {
-    const { appId } = await appClient.appClient.getAppReference();
-    const { algod } = fixture.context;
-    const newClient = new RemovePartnerClient(
-      {
-        id: appId,
-        resolveBy: 'id',
-        sender: immersve,
-      },
-      algod
-    );
-
-    let errorThrown = false;
-    try {
-      await newClient.removePartner({ partner: 'Pera' }, { sendParams: { populateAppCallResources: true } });
-    } catch (e) {
-      errorThrown = true;
-    }
-
-    expect(errorThrown).toBe(true);
-
-    await newClient.update.update({});
-    await newClient.removePartner({ partner: 'Pera' }, { sendParams: { populateAppCallResources: true } });
-  });
-  */
 });
