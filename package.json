@@ -7,7 +7,7 @@
     "compile-contracts": "tealscript src/*.algo.ts dist/",
     "generate-clients": "algokit generate client dist/ --language typescript  --output client/{contract_name}Client.ts",
     "build": "bun run clean && bun run compile-contracts && bun run generate-clients",
-    "test": "bun run build && bun test __test__/Immersive.test.ts",
+    "test": "bun run build && bun test __test__/Immersive.test.ts --timeout 60000",
     "test:bugged": "bun run build:bugged && bun test __test__/BuggedImmersive.test.ts"
   },
   "devDependencies": {

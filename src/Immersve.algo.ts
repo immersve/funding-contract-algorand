@@ -319,7 +319,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param mbr - Payment transaction of minimum balance requirement
      * @param asset - The AssetID of the asset being transferred.
      */
-    acceptAsset(mbr: PayTxn, asset: AssetID): void {
+    assetAllowlistAdd(mbr: PayTxn, asset: AssetID): void {
         this.onlyOwner();
 
         verifyPayTxn(mbr, {
@@ -340,7 +340,7 @@ export class Master extends Contract.extend(Ownable) {
      *
      * @param asset - The AssetID of the asset being transferred.
      */
-    rejectAsset(asset: AssetID): void {
+    assetAllowlistRemove(asset: AssetID): void {
         this.onlyOwner();
 
         // Asset balance must be zero to close out of it. Consider settling the asset balance before revoking it.
@@ -353,7 +353,6 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         sendPayment({
-            sender: this.app.address,
             receiver: this.txn.sender,
             amount: globals.assetOptInMinBalance,
         });

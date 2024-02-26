@@ -6,7 +6,7 @@ import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
 import { sendTransaction, microAlgos } from '@algorandfoundation/algokit-utils';
 import { MasterClient } from '../client/MasterClient';
 
-const fixture = algorandFixture();
+const fixture = algorandFixture({ testAccountFunding: AlgoAmount.MicroAlgos(0) });
 
 let appClient: MasterClient;
 
@@ -23,14 +23,13 @@ describe('Immersve', () => {
 
     beforeAll(async () => {
         await fixture.beforeEach();
-        const { algod, testAccount, generateAccount } = fixture.context;
+        const { algod, generateAccount } = fixture.context;
 
-        const newAccounts = await Promise.all([
+        [immersve, user, circle] = await Promise.all([
+            generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
         ]);
-        immersve = testAccount;
-        [user, circle] = newAccounts;
 
         // Crete FakeUSDC
         fakeUSDC = (
@@ -109,7 +108,40 @@ describe('Immersve', () => {
         await appClient.create.deploy({ owner: immersve.addr });
 
         // FIX: Do I need to fund the app account?
-        // await appClient.appClient.fundAppAccount({ amount: microAlgos(200_000) });
+        await appClient.appClient.fundAppAccount({ amount: microAlgos(100_000) });
+    });
+
+    test('Set withdrawal rounds', async () => {
+        const result = await appClient.setWithdrawalRounds({ rounds: 0 });
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Allowlist Add FakeUSDC', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
+
+        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            from: immersve.addr,
+            to: appAddress,
+            amount: 100_000,
+            suggestedParams: await algod.getTransactionParams().do(),
+        });
+
+        const result = await appClient.assetAllowlistAdd(
+            {
+                mbr,
+                asset: fakeUSDC,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
     });
 
     test('Create new partner', async () => {
@@ -132,40 +164,7 @@ describe('Immersve', () => {
         );
     });
 
-    test('Set withdrawal rounds', async () => {
-        const result = await appClient.setWithdrawalRounds({ rounds: 0 });
-
-        expect(result.confirmation!.poolError).toBe('');
-    });
-
-    test('Immersve Accept FakeUSDC', async () => {
-        const { appAddress } = await appClient.appClient.getAppReference();
-        const { algod } = fixture.context;
-
-        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            from: immersve.addr,
-            to: appAddress,
-            amount: 100_000,
-            suggestedParams: await algod.getTransactionParams().do(),
-        });
-
-        const result = await appClient.acceptAsset(
-            {
-                mbr,
-                asset: fakeUSDC,
-            },
-            {
-                sendParams: {
-                    fee: microAlgos(2_000),
-                    populateAppCallResources: true,
-                },
-            }
-        );
-
-        expect(result.confirmation!.poolError).toBe('');
-    });
-
-    test('Accept FakeUSDC', async () => {
+    test('Accept FakeUSDC for Partner', async () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
 
@@ -344,6 +343,106 @@ describe('Immersve', () => {
                 sender: user,
                 sendParams: {
                     fee: AlgoAmount.MicroAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Disable FakeUSDC for card', async () => {
+        const result = await appClient.cardDisableAsset(
+            {
+                partner: 'Pera',
+                card: newCardAddress,
+                asset: fakeUSDC,
+            },
+            {
+                sender: user,
+                sendParams: {
+                    fee: microAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Close card', async () => {
+        const result = await appClient.cardClose(
+            {
+                partner: 'Pera',
+                cardHolder: user.addr,
+                card: newCardAddress,
+            },
+            {
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Reject FakeUSDC for Partner', async () => {
+        const result = await appClient.partnerRejectAsset(
+            {
+                partner: 'Pera',
+                asset: fakeUSDC,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Close Partner', async () => {
+        const result = await appClient.partnerClose(
+            {
+                partner: 'Pera',
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Allowlist Remove FakeUSDC', async () => {
+        const result = await appClient.assetAllowlistRemove(
+            {
+                asset: fakeUSDC,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Destroy Contract', async () => {
+        const result = await appClient.delete.destroy(
+            {},
+            {
+                sendParams: {
+                    fee: microAlgos(2_000),
                     populateAppCallResources: true,
                 },
             }

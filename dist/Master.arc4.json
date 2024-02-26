@@ -147,7 +147,7 @@
       }
     },
     {
-      "name": "acceptAsset",
+      "name": "assetAllowlistAdd",
       "desc": "Allows the master contract to flag intent of accepting an asset.This can be considered the whitelists whitelist.",
       "args": [
         {
@@ -166,7 +166,7 @@
       }
     },
     {
-      "name": "rejectAsset",
+      "name": "assetAllowlistRemove",
       "desc": "Allows the master contract to reject accepting an asset.",
       "args": [
         {
