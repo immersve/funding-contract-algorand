@@ -1,5 +1,3 @@
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable camelcase */
 /*
  * MIT License
  *
@@ -23,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable camelcase */
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 
@@ -36,16 +36,9 @@ type CardDetails = {
 type WithdrawalRequest = {
     nonce: uint64;
     round: uint64;
+    asset: AssetID;
     amount: uint64;
 };
-
-// Cost of storing Card data in a box
-// const box_mbr = (2500) + (400 * ((32 + 8 + 32) + 32));
-const box_mbr = 44_100;
-
-// Cost of creating a new partner contract
-// 100_000 + 4*25_000 + 3*3_500 + 25_000
-const partner_sc_mbr = 235_500;
 
 class ControlledAddress extends Contract {
     /**
@@ -71,11 +64,10 @@ export class Master extends Contract.extend(Ownable) {
 
     active_cards = GlobalStateKey<uint64>({ key: 'c' });
 
-    // Partner addresses
+    // Partners
     partners = BoxMap<string, Address>({ prefix: 'p' });
 
-    // Asset
-    asset = GlobalStateKey<Asset>({ key: 'a' });
+    active_partners = GlobalStateKey<uint64>({ key: 'p' });
 
     // Rounds to wait
     withdrawal_wait_time = GlobalStateKey<uint64>({ key: 'w' });
@@ -97,7 +89,7 @@ export class Master extends Contract.extend(Ownable) {
         /** Funding Source being debited from */
         card: Address;
         /** Asset being debited */
-        asset: Asset;
+        asset: AssetID;
         /** Amount being debited */
         amount: uint64;
     }>();
@@ -109,7 +101,7 @@ export class Master extends Contract.extend(Ownable) {
         /** Funding Source being refunded to */
         card: Address;
         /** Asset being refunded */
-        asset: Asset;
+        asset: AssetID;
         /** Amount being refunded */
         amount: uint64;
     }>();
@@ -119,7 +111,7 @@ export class Master extends Contract.extend(Ownable) {
      */
     Settlement = new EventLogger<{
         /** Asset being settled */
-        asset: Asset;
+        asset: AssetID;
         /** Amount being settled */
         amount: uint64;
     }>();
@@ -139,11 +131,8 @@ export class Master extends Contract.extend(Ownable) {
      * Deploy a Partner, setting the owner as provided
      */
     @allow.create('NoOp')
-    deploy(owner: Address, asset: Asset): Address {
+    deploy(owner: Address): Address {
         this._transferOwnership(owner);
-
-        // Set the asset
-        this.asset.value = asset;
 
         return this.app.address;
     }
@@ -165,6 +154,8 @@ export class Master extends Contract.extend(Ownable) {
 
         // There must not be any active cards
         assert(!this.active_cards.value);
+        // There must not be any active partners
+        assert(!this.active_partners.value);
 
         sendPayment({
             receiver: this.app.address,
@@ -173,6 +164,7 @@ export class Master extends Contract.extend(Ownable) {
         });
     }
 
+    // ===== Owner Methods =====
     /**
      * Set the number of rounds a withdrawal request must wait until being withdrawn
      * @param rounds New number of rounds to wait
@@ -183,11 +175,20 @@ export class Master extends Contract.extend(Ownable) {
         this.withdrawal_wait_time.value = rounds;
     }
 
-    /** Create a partner address that is controlled by this contract */
+    /**
+     * Creates a partner account and associates it with the provided partner name.
+     * Only the owner of the contract can call this function.
+     *
+     * @param mbr - The PayTxn object representing the payment transaction.
+     * @param partner - The name of the partner.
+     * @returns The address of the newly created partner account.
+     */
     partnerCreate(mbr: PayTxn, partner: string): Address {
         this.onlyOwner();
 
-        const boxCost = 2500 + 400 * (partner.length + 32 + 1);
+        assert(!this.partners(partner).exists);
+
+        const boxCost = 2500 + 400 * (3 + len(partner) + 32);
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
@@ -201,23 +202,42 @@ export class Master extends Contract.extend(Ownable) {
             clearStateProgram: ControlledAddress.clearProgram(),
         });
 
-        // Fund the account with a minimum balance for opting into the asset
+        // Fund the account with a minimum balance
         sendPayment({
             receiver: partnerAddr,
-            amount: globals.minBalance + globals.assetOptInMinBalance,
-        });
-
-        // Opt-in to the asset
-        sendAssetTransfer({
-            sender: partnerAddr,
-            assetReceiver: partnerAddr,
-            xferAsset: this.asset.value,
-            assetAmount: 0,
+            amount: globals.minBalance,
         });
 
         this.partners(partner).value = partnerAddr;
 
+        // Increment active partners
+        this.active_partners.value = this.active_partners.value + 1;
+
         return partnerAddr;
+    }
+
+    partnerClose(partner: string): void {
+        this.onlyOwner();
+
+        sendPayment({
+            sender: this.partners(partner).value,
+            receiver: this.partners(partner).value,
+            amount: 0,
+            closeRemainderTo: this.txn.sender,
+        });
+
+        const boxCost = 2500 + 400 * (3 + len(partner) + 32);
+
+        sendPayment({
+            receiver: this.txn.sender,
+            amount: boxCost,
+        });
+
+        // Delete the partner from the box
+        this.partners(partner).delete();
+
+        // Decrement active partners
+        this.active_partners.value = this.active_partners.value - 1;
     }
 
     /**
@@ -230,40 +250,35 @@ export class Master extends Contract.extend(Ownable) {
 
         assert(this.partners(partner).exists);
 
+        const cardFunds: CardDetails = { partner: partner, cardHolder: cardHolder };
+        const boxCost = 2500 + 400 * (1 + len(cardFunds) + 32);
+
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.minBalance + globals.assetOptInMinBalance + box_mbr,
+            amount: globals.minBalance + boxCost,
         });
 
         // Create a new account
-        const card_addr = sendMethodCall<typeof ControlledAddress.prototype.new>({
+        const cardAddr = sendMethodCall<typeof ControlledAddress.prototype.new>({
             onCompletion: OnCompletion.DeleteApplication,
             approvalProgram: ControlledAddress.approvalProgram(),
             clearStateProgram: ControlledAddress.clearProgram(),
         });
 
-        // Fund the account with a minimum balance for opting into the asset
+        // Fund the account with a minimum balance
         sendPayment({
-            receiver: card_addr,
-            amount: globals.minBalance + globals.assetOptInMinBalance,
-        });
-
-        // Opt-in to the asset
-        sendAssetTransfer({
-            sender: card_addr,
-            assetReceiver: card_addr,
-            xferAsset: this.asset.value,
-            assetAmount: 0,
+            receiver: cardAddr,
+            amount: globals.minBalance,
         });
 
         // Store new card along with Card Holder
-        this.cards({ partner: partner, cardHolder: cardHolder } as CardDetails).value = card_addr;
+        this.cards(cardFunds).value = cardAddr;
 
         // Increment active cards
         this.active_cards.value = this.active_cards.value + 1;
 
         // Return the new account address
-        return card_addr;
+        return cardAddr;
     }
 
     /**
@@ -282,16 +297,118 @@ export class Master extends Contract.extend(Ownable) {
             closeRemainderTo: this.txn.sender,
         });
 
+        const cardFunds: CardDetails = { partner: partner, cardHolder: cardHolder };
+        const boxCost = 2500 + 400 * (1 + len(cardFunds) + 32);
+
         sendPayment({
             receiver: this.txn.sender,
-            amount: box_mbr,
+            amount: boxCost,
         });
 
         // Delete the card from the box
-        this.cards({ partner: partner, cardHolder: cardHolder } as CardDetails).delete();
+        this.cards(cardFunds).delete();
 
         // Decrement active cards
         this.active_cards.value = this.active_cards.value - 1;
+    }
+
+    /**
+     * Allows the master contract to flag intent of accepting an asset.
+     * This can be considered the whitelists whitelist.
+     *
+     * @param mbr - Payment transaction of minimum balance requirement
+     * @param asset - The AssetID of the asset being transferred.
+     */
+    acceptAsset(mbr: PayTxn, asset: AssetID): void {
+        this.onlyOwner();
+
+        verifyPayTxn(mbr, {
+            receiver: this.app.address,
+            amount: globals.assetOptInMinBalance,
+        });
+
+        sendAssetTransfer({
+            sender: this.app.address,
+            assetReceiver: this.app.address,
+            xferAsset: asset,
+            assetAmount: 0,
+        });
+    }
+
+    /**
+     * Allows the master contract to reject accepting an asset.
+     *
+     * @param asset - The AssetID of the asset being transferred.
+     */
+    rejectAsset(asset: AssetID): void {
+        this.onlyOwner();
+
+        // Asset balance must be zero to close out of it. Consider settling the asset balance before revoking it.
+        sendAssetTransfer({
+            sender: this.app.address,
+            assetReceiver: this.app.address,
+            assetCloseTo: this.app.address,
+            xferAsset: asset,
+            assetAmount: 0,
+        });
+
+        sendPayment({
+            sender: this.app.address,
+            receiver: this.txn.sender,
+            amount: globals.assetOptInMinBalance,
+        });
+    }
+
+    /**
+     * Allows the specified asset to be transferred for users of this partner.
+     *
+     * @param mbr - The PayTxn object representing the transaction.
+     * @param asset - The ID of the asset to be allowed.
+     */
+    partnerAcceptAsset(mbr: PayTxn, partner: string, asset: AssetID): void {
+        this.onlyOwner();
+
+        verifyPayTxn(mbr, {
+            receiver: this.app.address,
+            amount: globals.assetOptInMinBalance,
+        });
+
+        sendPayment({
+            sender: this.app.address,
+            receiver: this.partners(partner).value,
+            amount: globals.assetOptInMinBalance,
+        });
+
+        sendAssetTransfer({
+            sender: this.partners(partner).value,
+            assetReceiver: this.partners(partner).value,
+            xferAsset: asset,
+            assetAmount: 0,
+        });
+    }
+
+    /**
+     * Revokes an asset by closing out its balance and transferring the minimum balance to the sender.
+     *
+     * @param asset The ID of the asset to revoke.
+     */
+    partnerRejectAsset(partner: string, asset: AssetID): void {
+        this.onlyOwner();
+
+        // Asset balance must be zero to close out of it. Consider settling the asset balance before revoking it.
+        sendAssetTransfer({
+            sender: this.partners(partner).value,
+            assetReceiver: this.partners(partner).value,
+            assetCloseTo: this.partners(partner).value,
+            xferAsset: asset,
+            assetAmount: 0,
+        });
+
+        sendPayment({
+            sender: this.partners(partner).value,
+            receiver: this.txn.sender,
+            amount: globals.assetOptInMinBalance,
+        });
     }
 
     /**
@@ -301,19 +418,19 @@ export class Master extends Contract.extend(Ownable) {
      * @param card The card account from which the asset will be debited.
      * @param amount The amount of the asset to be debited.
      */
-    cardDebit(partner: string, card: Address, amount: uint64): void {
+    cardDebit(partner: string, card: Address, asset: AssetID, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
             sender: card,
-            assetReceiver: this.partners(partner).value,
-            xferAsset: this.asset.value,
+            assetReceiver: this.app.address,
+            xferAsset: asset,
             assetAmount: amount,
         });
 
         this.Debit.log({
             card: card,
-            asset: this.asset.value,
+            asset: asset,
             amount: amount,
         });
     }
@@ -325,19 +442,19 @@ export class Master extends Contract.extend(Ownable) {
      * @param card - The card account to refund the asset to.
      * @param amount - The amount of the asset to refund.
      */
-    cardRefund(partner: string, card: Address, amount: uint64): void {
+    cardRefund(partner: string, card: Address, asset: AssetID, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
             sender: this.partners(partner).value,
             assetReceiver: card,
-            xferAsset: this.asset.value,
+            xferAsset: asset,
             assetAmount: amount,
         });
 
         this.Refund.log({
             card: card,
-            asset: this.asset.value,
+            asset: asset,
             amount: amount,
         });
     }
@@ -349,37 +466,97 @@ export class Master extends Contract.extend(Ownable) {
      * @param recipient The address of the recipient.
      * @param amount The amount of the asset to be transferred.
      */
-    settle(partner: string, recipient: Address, amount: uint64): void {
+    settle(recipient: Address, asset: AssetID, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
-            sender: this.partners(partner).value,
+            sender: this.app.address,
             assetReceiver: recipient,
-            xferAsset: this.asset.value,
+            xferAsset: asset,
             assetAmount: amount,
         });
 
         this.Settlement.log({
-            asset: this.asset.value,
+            asset: asset,
             amount: amount,
         });
     }
 
+    // ===== Card Holder Methods =====
     /**
-     * Allows the Card Holder to send an amount of assets from the account
+     * Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account
+     *
+     * @param partner Funding Channel name
+     * @param card Address to add asset to
+     * @param asset Asset to add
+     */
+    cardEnableAsset(mbr: PayTxn, partner: string, card: Address, asset: AssetID): void {
+        assert(this.isOwner() || this.isCardHolder(partner, card));
+
+        // FIX: frame_dig -1 error when uncommented
+        // This same logic should be on masterAcceptAsset and cardDebit
+        // assert(this.partners(partner).value.isOptedInToAsset(asset));
+
+        verifyPayTxn(mbr, {
+            receiver: this.app.address,
+            amount: globals.assetOptInMinBalance,
+        });
+
+        sendPayment({
+            receiver: card,
+            amount: globals.assetOptInMinBalance,
+        });
+
+        sendAssetTransfer({
+            sender: card,
+            assetReceiver: card,
+            xferAsset: asset,
+            assetAmount: 0,
+        });
+    }
+
+    /**
+     * Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account
+     *
+     * @param partner - The funding channel associated with the card.
+     * @param card - The address of the card.
+     * @param asset - The ID of the asset to be removed.
+     */
+    cardDisableAsset(partner: string, card: Address, asset: AssetID): void {
+        assert(this.isOwner() || this.isCardHolder(partner, card));
+
+        sendAssetTransfer({
+            sender: card,
+            assetReceiver: card,
+            assetCloseTo: card,
+            xferAsset: asset,
+            assetAmount: 0,
+        });
+
+        sendPayment({
+            sender: card,
+            receiver: this.txn.sender,
+            amount: globals.assetOptInMinBalance,
+        });
+    }
+
+    /**
+     * Allows the Card Holder (or contract owner) to send an amount of assets from the account
      * @param partner Funding Channel name
      * @param card Address to withdraw from
+     * @param asset Asset to withdraw
      * @param amount Amount to withdraw
      * @returns Withdrawal hash used for completing or cancelling the withdrawal
      */
     @allow.call('NoOp')
     @allow.call('OptIn')
-    cardWithdrawalRequest(partner: string, card: Address, amount: uint64): bytes32 {
-        assert(this.isCardHolder(partner, card));
+    cardWithdrawalRequest(partner: string, card: Address, asset: AssetID, amount: uint64): bytes32 {
+        assert(this.isOwner() || this.isCardHolder(partner, card));
 
         const withdrawal: WithdrawalRequest = {
             nonce: this.withdrawal_nonce(this.txn.sender).value,
             round: globals.round + this.withdrawal_wait_time.value,
+            asset: asset,
             amount: amount,
         };
         this.withdrawal_nonce(this.txn.sender).value = this.withdrawal_nonce(this.txn.sender).value + 1;
@@ -412,25 +589,22 @@ export class Master extends Contract.extend(Ownable) {
     @allow.call('NoOp')
     @allow.call('CloseOut')
     cardWithdraw(partner: string, card: Address, recipient: Address, withdrawal_hash: bytes32): void {
-        assert(this.isCardHolder(partner, card));
+        assert(this.isOwner() || this.isCardHolder(partner, card));
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
         assert(globals.round >= withdrawal.round || this.isOwner());
 
+        // FIX: Immersve could use a withdrawal request on a different card
+        // than was requested. Either include the card in the withdrawal
+        // request, or move the withdrawal request to the card's local state.
         sendAssetTransfer({
             sender: card,
             assetReceiver: recipient,
-            xferAsset: this.asset.value,
+            xferAsset: withdrawal.asset,
             assetAmount: withdrawal.amount,
         });
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
-    }
-}
-
-class RemovePartner extends Master {
-    removePartner(partner: string) {
-        this.partners(partner).delete();
     }
 }

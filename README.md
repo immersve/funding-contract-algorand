@@ -1,7 +1,125 @@
 # Immersve Concept
 
-This concept uses a single contract that "generates" new addresses for each card that's created.
+This concept uses a single contract that "generates" new addresses for each partner and card that's created.
 
+```mermaid
+classDiagram
+    ImmersveContract : +box cards
+    ImmersveContract : +box partners
+    ImmersveContract : +int active_cards
+    ImmersveContract : +int active_partners
+    ImmersveContract : +int withdrawal_wait_time
+    ImmersveContract : deploy()
+
+    ImmersveContract <|-- Owner
+    ImmersveContract <|-- Users
+
+    class Owner {
+        +bytes withdrawals
+        update()
+        destroy()
+        setWithdrawalRounds()
+        partnerCreate()
+        partnerClose()
+        cardCreate()
+        cardClose()
+        partnerAcceptAsset()
+        partnerRejectAsset()
+        partnerSettle()
+        cardDebit()
+        cardRefund()
+        cardWithdrawalRequest()
+        cardWithdrawalCancel()
+        cardWithdraw()
+    }
+
+    class Users {
+        +bytes withdrawals
+        cardEnableAsset()
+        cardDisableAsset()
+        cardWithdrawalRequest()
+        cardWithdrawalCancel()
+        cardWithdraw()
+    }
+```
+
+```mermaid
+sequenceDiagram
+    actor Merchant
+    actor MasterCard
+    actor Circle
+    actor User
+    actor Immersve
+    Immersve->>Contract: deploy()
+    Immersve->>Contract: setWithdrawalRounds()
+    Immersve->>Contract: partnerCreate()
+    activate Contract
+    create participant Partner
+    Contract-->>Partner: Create Partner
+    Partner-->>Contract: Rekey to Immersve
+    Contract-->>Partner: Fund MBR
+    deactivate Contract
+    Immersve->>Contract: partnerAcceptAsset()
+    activate Contract
+    Contract-->>Partner: Fund OptIn MBR
+    Partner-->>Partner: OptIn Asset
+    deactivate Contract
+    Immersve->>Contract: cardCreate()
+    activate Contract
+    create participant CardFunds
+    Contract-->>CardFunds: Create Card
+    CardFunds-->>Contract: Rekey to Immersve
+    Contract-->>CardFunds: Fund MBR
+    deactivate Contract
+    User->>Contract: cardEnableAsset()
+    activate Contract
+    Contract-->>CardFunds: Fund OptIn MBR
+    CardFunds-->>CardFunds: OptIn Asset
+    deactivate Contract
+    User->>CardFunds: Axfer (Deposit)
+    User->>Merchant: *taps card*
+    activate Merchant
+    Merchant-->>MasterCard: can pay?
+    MasterCard-->>Immersve: auth?
+    activate Immersve
+    Immersve-->>Immersve: Check local DB
+    Immersve-->>MasterCard: Yes
+    MasterCard-->>Merchant: Yes
+    Immersve->>Contract: cardDebit()
+    activate Contract
+    CardFunds-->>Partner: axfer (Debit)
+    deactivate Immersve
+    deactivate Merchant
+    deactivate Contract
+    Immersve->>Contract: partnerSettle()
+    activate Contract
+    Partner-->>Circle: axfer (Settle)
+    deactivate Contract
+    Circle-->>MasterCard: 
+    MasterCard-->>Merchant: 
+    User->>Contract: cardWithdrawalRequest()
+    User->>Contract: cardWithdraw()
+    activate Contract
+    CardFunds-->>User: axfer (Withdrawal)
+    User->>Contract: cardDisableAsset()
+    activate Contract
+    CardFunds-->>User: Refund OptIn MBR
+    deactivate Contract
+    Immersve->>Contract: cardClose()
+    activate Contract
+    destroy CardFunds
+    CardFunds-->>Immersve: pay
+    deactivate Contract
+    Immersve->>Contract: partnerRejectAsset()
+    activate Contract
+    Partner-->>Immersve: Refund OptIn MBR
+    deactivate Contract
+    Immersve->>Contract: partnerClose()
+    activate Contract
+    destroy Partner
+    Partner-->>Immersve: pay
+    deactivate Contract
+```
 ## Usage
 
 To install dependencies:

@@ -31,10 +31,6 @@
         {
           "name": "owner",
           "type": "address"
-        },
-        {
-          "name": "asset",
-          "type": "asset"
         }
       ],
       "returns": {
@@ -73,19 +69,34 @@
     },
     {
       "name": "partnerCreate",
-      "desc": "Create a partner address that is controlled by this contract",
+      "desc": "Creates a partner account and associates it with the provided partner name.Only the owner of the contract can call this function.",
       "args": [
         {
           "name": "mbr",
-          "type": "pay"
+          "type": "pay",
+          "desc": "The PayTxn object representing the payment transaction."
         },
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "The name of the partner."
+        }
+      ],
+      "returns": {
+        "type": "address",
+        "desc": "The address of the newly created partner account."
+      }
+    },
+    {
+      "name": "partnerClose",
+      "args": [
         {
           "name": "partner",
           "type": "string"
         }
       ],
       "returns": {
-        "type": "address"
+        "type": "void"
       }
     },
     {
@@ -136,6 +147,75 @@
       }
     },
     {
+      "name": "acceptAsset",
+      "args": [
+        {
+          "name": "mbr",
+          "type": "pay"
+        },
+        {
+          "name": "asset",
+          "type": "uint64"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "rejectAsset",
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "partnerAcceptAsset",
+      "desc": "Allows the specified asset to be transferred.",
+      "args": [
+        {
+          "name": "mbr",
+          "type": "pay",
+          "desc": "The PayTxn object representing the transaction."
+        },
+        {
+          "name": "partner",
+          "type": "string"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "The ID of the asset to be allowed."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "partnerRejectAsset",
+      "desc": "Revokes an asset by closing out its balance and transferring the minimum balance to the sender.",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "The ID of the asset to revoke."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "cardDebit",
       "desc": "Debits the specified amount of the given asset from the card account.Only the owner of the contract can perform this operation.",
       "args": [
@@ -147,6 +227,10 @@
           "name": "card",
           "type": "address",
           "desc": "The card account from which the asset will be debited."
+        },
+        {
+          "name": "asset",
+          "type": "uint64"
         },
         {
           "name": "amount",
@@ -195,6 +279,10 @@
           "desc": "The card account to refund the asset to."
         },
         {
+          "name": "asset",
+          "type": "uint64"
+        },
+        {
           "name": "amount",
           "type": "uint64",
           "desc": "The amount of the asset to refund."
@@ -232,13 +320,13 @@
       "desc": "Settles a payment by transferring an asset to the specified recipient.Only the owner of the contract can call this function.",
       "args": [
         {
-          "name": "partner",
-          "type": "string"
-        },
-        {
           "name": "recipient",
           "type": "address",
           "desc": "The address of the recipient."
+        },
+        {
+          "name": "asset",
+          "type": "uint64"
         },
         {
           "name": "amount",
@@ -269,8 +357,60 @@
       ]
     },
     {
+      "name": "cardEnableAsset",
+      "desc": "Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account",
+      "args": [
+        {
+          "name": "mbr",
+          "type": "pay"
+        },
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "Funding Channel name"
+        },
+        {
+          "name": "card",
+          "type": "address",
+          "desc": "Address to add asset to"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset to add"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "cardDisableAsset",
+      "desc": "Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account",
+      "args": [
+        {
+          "name": "partner",
+          "type": "string",
+          "desc": "The funding channel associated with the card."
+        },
+        {
+          "name": "card",
+          "type": "address",
+          "desc": "The address of the card."
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "The ID of the asset to be removed."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "cardWithdrawalRequest",
-      "desc": "Allows the Card Holder to send an amount of assets from the account",
+      "desc": "Allows the Card Holder (or contract owner) to send an amount of assets from the account",
       "args": [
         {
           "name": "partner",
@@ -281,6 +421,11 @@
           "name": "card",
           "type": "address",
           "desc": "Address to withdraw from"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset to withdraw"
         },
         {
           "name": "amount",

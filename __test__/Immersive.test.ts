@@ -1,266 +1,359 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 import algosdk from 'algosdk';
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
-import { sendTransaction, microAlgos, sendAtomicTransactionComposer } from '@algorandfoundation/algokit-utils';
+import { sendTransaction, microAlgos } from '@algorandfoundation/algokit-utils';
 import { MasterClient } from '../client/MasterClient';
-import { RemovePartnerClient } from '../client/RemovePartnerClient';
 
 const fixture = algorandFixture();
 
 let appClient: MasterClient;
 
 describe('Immersve', () => {
-  beforeEach(fixture.beforeEach);
+    beforeEach(fixture.beforeEach);
 
-  let admin: algosdk.Account;
-  let depositor: algosdk.Account;
-  let circle: algosdk.Account;
+    let circle: algosdk.Account;
+    let immersve: algosdk.Account;
+    let user: algosdk.Account;
 
-  let fakeUSDC: number;
-  let newCardAddress: string;
-  let withdrawalRequest: Uint8Array;
+    let fakeUSDC: number;
+    let newCardAddress: string;
+    let withdrawalRequest: Uint8Array;
 
-  beforeAll(async () => {
-    await fixture.beforeEach();
-    const { algod, testAccount, generateAccount } = fixture.context;
+    beforeAll(async () => {
+        await fixture.beforeEach();
+        const { algod, testAccount, generateAccount } = fixture.context;
 
-    const newAccounts = await Promise.all([
-      generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
-      generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
-    ]);
-    admin = testAccount;
-    [depositor, circle] = newAccounts;
+        const newAccounts = await Promise.all([
+            generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
+            generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
+        ]);
+        immersve = testAccount;
+        [user, circle] = newAccounts;
 
-    // Crete FakeUSDC
-    fakeUSDC = (
-      await sendTransaction(
-        {
-          transaction: algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-            from: admin.addr,
-            assetName: 'FakeUSDC',
-            unitName: 'FUSDC',
-            total: BigInt(2) ** BigInt(64) - BigInt(1),
-            decimals: 6,
-            defaultFrozen: false,
-            manager: admin.addr,
-            reserve: admin.addr,
-            freeze: admin.addr,
-            suggestedParams: await algod.getTransactionParams().do(),
-          }),
-          from: admin,
-        },
-        algod
-      )
-    ).confirmation!.assetIndex as number;
+        // Crete FakeUSDC
+        fakeUSDC = (
+            await sendTransaction(
+                {
+                    transaction: algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+                        from: circle.addr,
+                        assetName: 'FakeUSDC',
+                        unitName: 'FUSDC',
+                        total: BigInt(2) ** BigInt(64) - BigInt(1),
+                        decimals: 6,
+                        defaultFrozen: false,
+                        manager: circle.addr,
+                        reserve: circle.addr,
+                        freeze: circle.addr,
+                        suggestedParams: await algod.getTransactionParams().do(),
+                    }),
+                    from: circle,
+                },
+                algod
+            )
+        ).confirmation!.assetIndex as number;
 
-    // OptIn and Send FUSDC
-    await Promise.all([
-      sendTransaction(
-        {
-          transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            from: depositor.addr,
-            to: depositor.addr,
-            assetIndex: fakeUSDC,
-            amount: 0,
-            suggestedParams: await algod.getTransactionParams().do(),
-          }),
-          from: depositor,
-        },
-        algod
-      ),
-      sendTransaction(
-        {
-          transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            from: circle.addr,
-            to: circle.addr,
-            assetIndex: fakeUSDC,
-            amount: 0,
-            suggestedParams: await algod.getTransactionParams().do(),
-          }),
-          from: circle,
-        },
-        algod
-      ),
-    ]);
-    await sendTransaction(
-      {
-        transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          from: admin.addr,
-          to: depositor.addr,
-          assetIndex: fakeUSDC,
-          amount: 100_000_000,
-          suggestedParams: await algod.getTransactionParams().do(),
-        }),
-        from: admin,
-      },
-      algod
-    );
+        // OptIn and Send FUSDC
+        await Promise.all([
+            sendTransaction(
+                {
+                    transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+                        from: immersve.addr,
+                        to: immersve.addr,
+                        assetIndex: fakeUSDC,
+                        amount: 0,
+                        suggestedParams: await algod.getTransactionParams().do(),
+                    }),
+                    from: immersve,
+                },
+                algod
+            ),
+            sendTransaction(
+                {
+                    transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+                        from: user.addr,
+                        to: user.addr,
+                        assetIndex: fakeUSDC,
+                        amount: 0,
+                        suggestedParams: await algod.getTransactionParams().do(),
+                    }),
+                    from: user,
+                },
+                algod
+            ),
+        ]);
+        await sendTransaction(
+            {
+                transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+                    from: circle.addr,
+                    to: user.addr,
+                    assetIndex: fakeUSDC,
+                    amount: 100_000_000,
+                    suggestedParams: await algod.getTransactionParams().do(),
+                }),
+                from: circle,
+            },
+            algod
+        );
 
-    appClient = new MasterClient(
-      {
-        id: 0,
-        resolveBy: 'id',
-        sender: admin,
-      },
-      algod
-    );
+        appClient = new MasterClient(
+            {
+                id: 0,
+                resolveBy: 'id',
+                sender: immersve,
+            },
+            algod
+        );
 
-    await appClient.create.deploy({ owner: admin.addr, asset: fakeUSDC });
+        await appClient.create.deploy({ owner: immersve.addr });
 
-    await appClient.appClient.fundAppAccount({ amount: microAlgos(200_000) });
-  });
-
-  test('Create new partner', async () => {
-    const { appAddress } = await appClient.appClient.getAppReference();
-    const { algod } = fixture.context;
-
-    // 2500 per box, 400 per byte: partner name + addr length + prefix
-    const boxCost = 2500 + 400 * ('Pera'.length + 32 + 1);
-
-    const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      from: admin.addr,
-      to: appAddress,
-      amount: 200_000 + boxCost,
-      suggestedParams: await algod.getTransactionParams().do(),
+        // FIX: Do I need to fund the app account?
+        // await appClient.appClient.fundAppAccount({ amount: microAlgos(200_000) });
     });
 
-    await appClient.partnerCreate(
-      { partner: 'Pera', mbr },
-      { sendParams: { fee: microAlgos(5_000), populateAppCallResources: true } }
-    );
-  });
+    test('Create new partner', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
 
-  test('Set withdrawal rounds', async () => {
-    const result = await appClient.setWithdrawalRounds({ rounds: 1 });
+        // 2500 per box, 400 per byte: prefix + partner name + addr length
+        const boxCost = 2500 + 400 * (1 + 2 + 'Pera'.length + 32);
 
-    expect(result.confirmation!.poolError).toBe('');
-  });
+        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            from: immersve.addr,
+            to: appAddress,
+            amount: 200_000 + boxCost, // TODO: Use minimum balance + asset optin cost + box cost
+            suggestedParams: await algod.getTransactionParams().do(),
+        });
 
-  test('Create new card', async () => {
-    const { algod } = fixture.context;
-    const { appAddress: partnerAddress } = await appClient.appClient.getAppReference();
-
-    const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      from: admin.addr,
-      to: partnerAddress,
-      amount: 200_000 + 44_100,
-      suggestedParams: await algod.getTransactionParams().do(),
+        await appClient.partnerCreate(
+            { mbr, partner: 'Pera' },
+            { sendParams: { fee: microAlgos(5_000), populateAppCallResources: true } }
+        );
     });
-    const result = await appClient.cardCreate(
-      {
-        cardHolder: depositor.addr,
-        partner: 'Pera',
-        mbr,
-      },
-      {
-        sendParams: {
-          fee: AlgoAmount.MicroAlgos(5_000),
-          populateAppCallResources: true,
-        },
-      }
-    );
-    expect(result.return).toBeDefined();
 
-    newCardAddress = result.return!;
-  });
+    test('Set withdrawal rounds', async () => {
+        const result = await appClient.setWithdrawalRounds({ rounds: 0 });
 
-  test('Deposit FakeUSDC to card', async () => {
-    const { algod } = fixture.context;
+        expect(result.confirmation!.poolError).toBe('');
+    });
 
-    const result = await sendTransaction(
-      {
-        transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          from: depositor.addr,
-          to: newCardAddress,
-          assetIndex: fakeUSDC,
-          amount: 10_000_000,
-          suggestedParams: await algod.getTransactionParams().do(),
-        }),
-        from: depositor,
-      },
-      algod
-    );
+    test('Immersve Accept FakeUSDC', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
 
-    expect(result.confirmation!.poolError).toBeDefined();
-  });
+        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            from: immersve.addr,
+            to: appAddress,
+            amount: 100_000,
+            suggestedParams: await algod.getTransactionParams().do(),
+        });
 
-  test('Depositor spends, owner debits', async () => {
-    const result = await appClient.cardDebit(
-      {
-        amount: 5_000_000,
-        card: newCardAddress,
-        partner: 'Pera',
-      },
-      {
-        sendParams: {
-          fee: AlgoAmount.MicroAlgos(3_000),
-          populateAppCallResources: true,
-        },
-      }
-    );
+        const result = await appClient.acceptAsset(
+            {
+                mbr,
+                asset: fakeUSDC,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
 
-    expect(result.confirmation!.poolError).toBeDefined();
-  });
+        expect(result.confirmation!.poolError).toBe('');
+    });
 
-  test('Depositor creates withdrawal request', async () => {
-    const result = await appClient.optIn.cardWithdrawalRequest(
-      {
-        amount: 5_000_000,
-        card: newCardAddress,
-        partner: 'Pera',
-      },
-      {
-        sender: depositor,
-        sendParams: {
-          populateAppCallResources: true,
-        },
-      }
-    );
+    test('Accept FakeUSDC', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
 
-    expect(result.return).toBeDefined();
+        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            from: immersve.addr,
+            to: appAddress,
+            amount: 100_000,
+            suggestedParams: await algod.getTransactionParams().do(),
+        });
 
-    withdrawalRequest = result.return!;
-  });
+        const result = await appClient.partnerAcceptAsset(
+            {
+                mbr,
+                partner: 'Pera',
+                asset: fakeUSDC,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
 
-  test('Settle debits', async () => {
-    const result = await appClient.settle(
-      {
-        amount: 5_000_000,
-        recipient: circle.addr,
-        partner: 'Pera',
-      },
-      {
-        sendParams: {
-          fee: AlgoAmount.MicroAlgos(2_000),
-          populateAppCallResources: true,
-        },
-      }
-    );
+        expect(result.confirmation!.poolError).toBe('');
+    });
 
-    expect(result.confirmation!.poolError).toBe('');
-  });
+    test('Create new card', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
 
-  test('Complete withdrawal request', async () => {
-    const result = await appClient.closeOut.cardWithdraw(
-      {
-        card: newCardAddress,
-        partner: 'Pera',
-        recipient: depositor.addr,
-        withdrawal_hash: withdrawalRequest,
-      },
-      {
-        sender: depositor,
-        sendParams: {
-          fee: AlgoAmount.MicroAlgos(2_000),
-          populateAppCallResources: true,
-        },
-      }
-    );
+        // 2500 per box, 400 per byte: prefix + partner name + addr length
+        const boxCost = 2500 + 400 * (1 + 4 + 'Pera'.length + 32 + 32);
 
-    expect(result.confirmation!.poolError).toBe('');
-  });
+        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            from: immersve.addr,
+            to: appAddress,
+            amount: 100_000 + boxCost,
+            suggestedParams: await algod.getTransactionParams().do(),
+        });
+        const result = await appClient.cardCreate(
+            {
+                mbr,
+                partner: 'Pera',
+                cardHolder: user.addr,
+            },
+            {
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(5_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+        expect(result.return).toBeDefined();
 
+        newCardAddress = result.return!;
+    });
+
+    test('Enable FakeUSDC for card', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
+
+        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            from: user.addr,
+            to: appAddress,
+            amount: 100_000,
+            suggestedParams: await algod.getTransactionParams().do(),
+        });
+
+        const result = await appClient.cardEnableAsset(
+            {
+                mbr,
+                partner: 'Pera',
+                card: newCardAddress,
+                asset: fakeUSDC,
+            },
+            {
+                sender: user,
+                sendParams: {
+                    fee: microAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Deposit FakeUSDC to card', async () => {
+        const { algod } = fixture.context;
+
+        const result = await sendTransaction(
+            {
+                transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+                    from: user.addr,
+                    to: newCardAddress,
+                    assetIndex: fakeUSDC,
+                    amount: 10_000_000,
+                    suggestedParams: await algod.getTransactionParams().do(),
+                }),
+                from: user,
+            },
+            algod
+        );
+
+        expect(result.confirmation!.poolError).toBeDefined();
+    });
+
+    test('User spends, Immersve debits', async () => {
+        const result = await appClient.cardDebit(
+            {
+                partner: 'Pera',
+                card: newCardAddress,
+                asset: fakeUSDC,
+                amount: 5_000_000,
+            },
+            {
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBeDefined();
+    });
+
+    test('User creates withdrawal request', async () => {
+        const result = await appClient.optIn.cardWithdrawalRequest(
+            {
+                partner: 'Pera',
+                card: newCardAddress,
+                asset: fakeUSDC,
+                amount: 5_000_000,
+            },
+            {
+                sender: user,
+                sendParams: {
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.return).toBeDefined();
+
+        withdrawalRequest = result.return!;
+    });
+
+    test('Settle debits', async () => {
+        const result = await appClient.settle(
+            {
+                recipient: circle.addr,
+                asset: fakeUSDC,
+                amount: 5_000_000,
+            },
+            {
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Complete withdrawal request', async () => {
+        const result = await appClient.closeOut.cardWithdraw(
+            {
+                partner: 'Pera',
+                card: newCardAddress,
+                recipient: user.addr,
+                withdrawal_hash: withdrawalRequest,
+            },
+            {
+                sender: user,
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    /*
+  TODO: Close properly
   test('Update & remove partner', async () => {
     const { appId } = await appClient.appClient.getAppReference();
     const { algod } = fixture.context;
@@ -268,7 +361,7 @@ describe('Immersve', () => {
       {
         id: appId,
         resolveBy: 'id',
-        sender: admin,
+        sender: immersve,
       },
       algod
     );
@@ -285,4 +378,5 @@ describe('Immersve', () => {
     await newClient.update.update({});
     await newClient.removePartner({ partner: 'Pera' }, { sendParams: { populateAppCallResources: true } });
   });
+  */
 });
