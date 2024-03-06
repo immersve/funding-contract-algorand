@@ -518,7 +518,40 @@
       ],
       "returns": {
         "type": "void"
-      }
+      },
+      "events": [
+        {
+          "name": "Withdrawal",
+          "args": [
+            {
+              "name": "card",
+              "type": "address",
+              "desc": "Funding Source withdrawn from"
+            },
+            {
+              "name": "recipient",
+              "type": "address",
+              "desc": "Recipient address withdrawn to"
+            },
+            {
+              "name": "asset",
+              "type": "uint64",
+              "desc": "Asset withdrawn"
+            },
+            {
+              "name": "amount",
+              "type": "uint64",
+              "desc": "Amount withdrawn"
+            },
+            {
+              "name": "nonce",
+              "type": "uint64",
+              "desc": "Withdrawal nonce"
+            }
+          ],
+          "desc": "Withdrawal event"
+        }
+      ]
     }
   ],
   "events": [
@@ -600,6 +633,37 @@
         }
       ],
       "desc": "Settlement event"
+    },
+    {
+      "name": "Withdrawal",
+      "args": [
+        {
+          "name": "card",
+          "type": "address",
+          "desc": "Funding Source withdrawn from"
+        },
+        {
+          "name": "recipient",
+          "type": "address",
+          "desc": "Recipient address withdrawn to"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset withdrawn"
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount withdrawn"
+        },
+        {
+          "name": "nonce",
+          "type": "uint64",
+          "desc": "Withdrawal nonce"
+        }
+      ],
+      "desc": "Withdrawal event"
     }
   ]
 }

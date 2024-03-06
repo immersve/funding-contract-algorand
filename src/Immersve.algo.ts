@@ -116,6 +116,22 @@ export class Master extends Contract.extend(Ownable) {
         amount: uint64;
     }>();
 
+    /**
+     * Withdrawal event
+     */
+    Withdrawal = new EventLogger<{
+        /** Funding Source withdrawn from */
+        card: Address;
+        /** Recipient address withdrawn to */
+        recipient: Address;
+        /** Asset withdrawn */
+        asset: AssetID;
+        /** Amount withdrawn */
+        amount: uint64;
+        /** Withdrawal nonce */
+        nonce: uint64;
+    }>();
+
     // ========== Internal Utils ==========
     /**
      * Check if the current transaction sender is the Card Holder of the card account
@@ -620,6 +636,14 @@ export class Master extends Contract.extend(Ownable) {
             assetReceiver: recipient,
             xferAsset: withdrawal.asset,
             assetAmount: withdrawal.amount,
+        });
+
+        this.Withdrawal.log({
+            card: card,
+            recipient: recipient,
+            asset: withdrawal.asset,
+            amount: withdrawal.amount,
+            nonce: withdrawal.nonce,
         });
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
