@@ -307,6 +307,20 @@ describe('Immersve', () => {
         expect(result.confirmation!.poolError).toBeDefined();
     });
 
+    test('Update Contract', async () => {
+        const result = await appClient.update.update(
+            {},
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
     test('Recover Card', async () => {
         const result = await appClient.cardRecover(
             {
@@ -330,6 +344,7 @@ describe('Immersve', () => {
             {
                 partner: 'Pera',
                 card: newCardAddress,
+                recipient: user2.addr,
                 asset: fakeUSDC,
                 amount: 5_000_000,
             },
@@ -369,7 +384,6 @@ describe('Immersve', () => {
             {
                 partner: 'Pera',
                 card: newCardAddress,
-                recipient: user2.addr,
                 withdrawal_hash: withdrawalRequest,
             },
             {
@@ -383,6 +397,8 @@ describe('Immersve', () => {
 
         expect(result.confirmation!.poolError).toBe('');
     });
+
+    // TODO: cardWithdrawEarly test
 
     test('Disable FakeUSDC for card', async () => {
         const result = await appClient.cardDisableAsset(

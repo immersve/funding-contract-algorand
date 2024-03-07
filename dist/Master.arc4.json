@@ -68,6 +68,20 @@
       }
     },
     {
+      "name": "setEarlyWithdrawalPubkey",
+      "desc": "Sets the early withdrawal public key.",
+      "args": [
+        {
+          "name": "pubkey",
+          "type": "byte[32]",
+          "desc": "The public key to set."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "partnerCreate",
       "desc": "Creates a partner account and associates it with the provided partner name.Only the owner of the contract can call this function.",
       "args": [
@@ -452,6 +466,10 @@
           "desc": "Address to withdraw from"
         },
         {
+          "name": "recipient",
+          "type": "address"
+        },
+        {
           "name": "asset",
           "type": "uint64",
           "desc": "Asset to withdraw"
@@ -506,11 +524,6 @@
           "desc": "Address to withdraw from"
         },
         {
-          "name": "recipient",
-          "type": "address",
-          "desc": "Receiver of the assets being withdrawn"
-        },
-        {
           "name": "withdrawal_hash",
           "type": "byte[32]",
           "desc": "Hash of the withdrawal request"
@@ -518,40 +531,36 @@
       ],
       "returns": {
         "type": "void"
-      },
-      "events": [
+      }
+    },
+    {
+      "name": "cardWithdrawEarly",
+      "desc": "Withdraws funds before the withdrawal round has lapsed, by using the early withdrawal signature provided by Immersve.",
+      "args": [
         {
-          "name": "Withdrawal",
-          "args": [
-            {
-              "name": "card",
-              "type": "address",
-              "desc": "Funding Source withdrawn from"
-            },
-            {
-              "name": "recipient",
-              "type": "address",
-              "desc": "Recipient address withdrawn to"
-            },
-            {
-              "name": "asset",
-              "type": "uint64",
-              "desc": "Asset withdrawn"
-            },
-            {
-              "name": "amount",
-              "type": "uint64",
-              "desc": "Amount withdrawn"
-            },
-            {
-              "name": "nonce",
-              "type": "uint64",
-              "desc": "Withdrawal nonce"
-            }
-          ],
-          "desc": "Withdrawal event"
+          "name": "partner",
+          "type": "string",
+          "desc": "The partner associated with the card."
+        },
+        {
+          "name": "card",
+          "type": "address",
+          "desc": "The address of the card."
+        },
+        {
+          "name": "withdrawal_hash",
+          "type": "byte[32]",
+          "desc": "The hash of the withdrawal."
+        },
+        {
+          "name": "early_withdrawal_sig",
+          "type": "byte[32]",
+          "desc": "The signature for early withdrawal."
         }
-      ]
+      ],
+      "returns": {
+        "type": "void"
+      }
     }
   ],
   "events": [

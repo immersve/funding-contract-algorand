@@ -36,6 +36,8 @@ type CardDetails = {
 type WithdrawalRequest = {
     nonce: uint64;
     round: uint64;
+    card: Address;
+    recipient: Address;
     asset: AssetID;
     amount: uint64;
 };
@@ -71,6 +73,9 @@ export class Master extends Contract.extend(Ownable) {
 
     // Rounds to wait
     withdrawal_wait_time = GlobalStateKey<uint64>({ key: 'w' });
+
+    // Early withdrawal public key
+    early_withdrawal_pubkey = GlobalStateKey<bytes32>({ key: 'k' });
 
     // Withdrawal requests
     withdrawals = LocalStateMap<bytes32, WithdrawalRequest>({ maxKeys: 15 });
@@ -142,6 +147,24 @@ export class Master extends Contract.extend(Ownable) {
         return this.cards({ partner: partner, cardHolder: this.txn.sender } as CardDetails).value === card;
     }
 
+    private withdrawFunds(withdrawal: WithdrawalRequest): void {
+        sendAssetTransfer({
+            sender: withdrawal.card,
+            assetReceiver: withdrawal.recipient,
+            xferAsset: withdrawal.asset,
+            assetAmount: withdrawal.amount,
+        });
+
+        // Emit withdrawal event
+        this.Withdrawal.log({
+            card: withdrawal.card,
+            recipient: withdrawal.recipient,
+            asset: withdrawal.asset,
+            amount: withdrawal.amount,
+            nonce: withdrawal.nonce,
+        });
+    }
+
     // ========== External Methods ==========
     /**
      * Deploy a Partner, setting the owner as provided
@@ -189,6 +212,16 @@ export class Master extends Contract.extend(Ownable) {
         this.onlyOwner();
 
         this.withdrawal_wait_time.value = rounds;
+    }
+
+    /**
+     * Sets the early withdrawal public key.
+     * @param pubkey - The public key to set.
+     */
+    setEarlyWithdrawalPubkey(pubkey: bytes32): void {
+        this.onlyOwner();
+
+        this.early_withdrawal_pubkey.value = pubkey;
     }
 
     /**
@@ -331,7 +364,7 @@ export class Master extends Contract.extend(Ownable) {
     /**
      * Recovers funds from an old card and transfers them to a new card.
      * Only the owner of the contract can perform this operation.
-     * 
+     *
      * @param partner - The partner associated with the cards.
      * @param oldCardHolder - The address of the old card holder.
      * @param newCardHolder - The address of the new card holder.
@@ -583,12 +616,14 @@ export class Master extends Contract.extend(Ownable) {
      */
     @allow.call('NoOp')
     @allow.call('OptIn')
-    cardWithdrawalRequest(partner: string, card: Address, asset: AssetID, amount: uint64): bytes32 {
+    cardWithdrawalRequest(partner: string, card: Address, recipient: Address, asset: AssetID, amount: uint64): bytes32 {
         assert(this.isOwner() || this.isCardHolder(partner, card));
 
         const withdrawal: WithdrawalRequest = {
             nonce: this.withdrawal_nonce(this.txn.sender).value,
             round: globals.round + this.withdrawal_wait_time.value,
+            card: card,
+            recipient: recipient,
             asset: asset,
             amount: amount,
         };
@@ -616,36 +651,52 @@ export class Master extends Contract.extend(Ownable) {
      * Allows the Card Holder to send an amount of assets from the account
      * @param partner Funding Channel name
      * @param card Address to withdraw from
-     * @param recipient Receiver of the assets being withdrawn
      * @param withdrawal_hash Hash of the withdrawal request
+     * @param early_withdrawal_sig Signature of withdrawal_hash from the early_withdrawal_pubkey
      */
     @allow.call('NoOp')
     @allow.call('CloseOut')
-    cardWithdraw(partner: string, card: Address, recipient: Address, withdrawal_hash: bytes32): void {
+    cardWithdraw(partner: string, card: Address, withdrawal_hash: bytes32): void {
         assert(this.isOwner() || this.isCardHolder(partner, card));
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
         assert(globals.round >= withdrawal.round || this.isOwner());
 
-        // FIX: Immersve could use a withdrawal request on a different card
-        // than was requested. Either include the card in the withdrawal
-        // request, or move the withdrawal request to the card's local state.
-        sendAssetTransfer({
-            sender: card,
-            assetReceiver: recipient,
-            xferAsset: withdrawal.asset,
-            assetAmount: withdrawal.amount,
-        });
+        // Issue the withdrawal
+        this.withdrawFunds(withdrawal);
 
-        this.Withdrawal.log({
-            card: card,
-            recipient: recipient,
-            asset: withdrawal.asset,
-            amount: withdrawal.amount,
-            nonce: withdrawal.nonce,
-        });
+        // Delete the withdrawal request
+        this.withdrawals(this.txn.sender, withdrawal_hash).delete();
+    }
 
+    /**
+     * Withdraws funds before the withdrawal round has lapsed, by using the early withdrawal signature provided by Immersve.
+     * @param partner - The partner associated with the card.
+     * @param card - The address of the card.
+     * @param withdrawal_hash - The hash of the withdrawal.
+     * @param early_withdrawal_sig - The signature for early withdrawal.
+     */
+    cardWithdrawEarly(partner: string, card: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes32): void {
+        assert(this.isCardHolder(partner, card));
+
+        const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
+
+        // If the withdrawal round has lapsed, there's no need to use the early withdrawal signature
+        if (globals.round < withdrawal.round) {
+            // Need at least 2000 Opcode budget
+            // TODO: Optimise?
+            while (globals.opcodeBudget < 2500) {
+                increaseOpcodeBudget();
+            }
+
+            assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value));
+        }
+
+        // Issue the withdrawal
+        this.withdrawFunds(withdrawal);
+
+        // Delete the withdrawal request
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
 }
