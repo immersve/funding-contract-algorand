@@ -1756,34 +1756,30 @@ partnerRejectAsset:
 	itxn_submit
 	retsub
 
-// cardDebit(string,address,uint64,uint64)void
+// cardDebit(address,uint64,uint64)void
 *abi_route_cardDebit:
 	// amount: uint64
-	txna ApplicationArgs 4
-	btoi
-
-	// asset: uint64
 	txna ApplicationArgs 3
 	btoi
 
-	// card: address
+	// asset: uint64
 	txna ApplicationArgs 2
+	btoi
+
+	// card: address
+	txna ApplicationArgs 1
 	dup
 	len
 	int 32
 	==
 	assert
 
-	// partner: string
-	txna ApplicationArgs 1
-	extract 2 0
-
-	// execute cardDebit(string,address,uint64,uint64)void
+	// execute cardDebit(address,uint64,uint64)void
 	callsub cardDebit
 	int 1
 	return
 
-// cardDebit(partner: string, card: Address, asset: AssetID, amount: uint64): void
+// cardDebit(card: Address, asset: AssetID, amount: uint64): void
 //
 // Debits the specified amount of the given asset from the card account.
 // Only the owner of the contract can perform this operation.
@@ -1791,7 +1787,7 @@ partnerRejectAsset:
 // @param card The card account from which the asset will be debited.
 // @param amount The amount of the asset to be debited.
 cardDebit:
-	proto 4 0
+	proto 3 0
 
 	// src/Immersve.algo.ts:488
 	// this.onlyOwner()
@@ -1810,7 +1806,7 @@ cardDebit:
 
 	// src/Immersve.algo.ts:491
 	// sender: card
-	frame_dig -2 // card: Address
+	frame_dig -1 // card: Address
 	itxn_field Sender
 
 	// src/Immersve.algo.ts:492
@@ -1820,12 +1816,12 @@ cardDebit:
 
 	// src/Immersve.algo.ts:493
 	// xferAsset: asset
-	frame_dig -3 // asset: AssetID
+	frame_dig -2 // asset: AssetID
 	itxn_field XferAsset
 
 	// src/Immersve.algo.ts:494
 	// assetAmount: amount
-	frame_dig -4 // amount: uint64
+	frame_dig -3 // amount: uint64
 	itxn_field AssetAmount
 
 	// Fee field not set, defaulting to 0
@@ -1842,11 +1838,11 @@ cardDebit:
 	//             amount: amount,
 	//         })
 	byte 0x6e40a4c4 // Debit(address,uint64,uint64)
-	frame_dig -2 // card: Address
-	frame_dig -3 // asset: AssetID
+	frame_dig -1 // card: Address
+	frame_dig -2 // asset: AssetID
 	itob
 	concat
-	frame_dig -4 // amount: uint64
+	frame_dig -3 // amount: uint64
 	itob
 	concat
 	concat
@@ -2536,7 +2532,6 @@ cardWithdrawalCancel:
 // @param partner Funding Channel name
 // @param card Address to withdraw from
 // @param withdrawal_hash Hash of the withdrawal request
-// @param early_withdrawal_sig Signature of withdrawal_hash from the early_withdrawal_pubkey
 cardWithdraw:
 	proto 3 0
 
@@ -2544,7 +2539,7 @@ cardWithdraw:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:660
+	// src/Immersve.algo.ts:659
 	// assert(this.isOwner() || this.isCardHolder(partner, card))
 	callsub isOwner
 	dup
@@ -2557,17 +2552,17 @@ cardWithdraw:
 *skip_or4:
 	assert
 
-	// src/Immersve.algo.ts:662
+	// src/Immersve.algo.ts:661
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	frame_dig -3 // withdrawal_hash: bytes32
 	frame_bury 0 // storage key//withdrawal
 
-	// src/Immersve.algo.ts:662
+	// src/Immersve.algo.ts:661
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	txn Sender
 	frame_bury 1 // storage account//withdrawal
 
-	// src/Immersve.algo.ts:664
+	// src/Immersve.algo.ts:663
 	// assert(globals.round >= withdrawal.round || this.isOwner())
 	global Round
 	frame_dig 1 // storage account//withdrawal
@@ -2584,14 +2579,14 @@ cardWithdraw:
 *skip_or5:
 	assert
 
-	// src/Immersve.algo.ts:667
+	// src/Immersve.algo.ts:666
 	// this.withdrawFunds(withdrawal)
 	frame_dig 1 // storage account//withdrawal
 	frame_dig 0 // storage key//withdrawal
 	app_local_get
 	callsub withdrawFunds
 
-	// src/Immersve.algo.ts:670
+	// src/Immersve.algo.ts:669
 	// this.withdrawals(this.txn.sender, withdrawal_hash).delete()
 	txn Sender
 	frame_dig -3 // withdrawal_hash: bytes32
@@ -2647,25 +2642,25 @@ cardWithdrawEarly:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:681
+	// src/Immersve.algo.ts:680
 	// assert(this.isCardHolder(partner, card))
 	frame_dig -2 // card: Address
 	frame_dig -1 // partner: string
 	callsub isCardHolder
 	assert
 
-	// src/Immersve.algo.ts:683
+	// src/Immersve.algo.ts:682
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	frame_dig -3 // withdrawal_hash: bytes32
 	frame_bury 0 // storage key//withdrawal
 
-	// src/Immersve.algo.ts:683
+	// src/Immersve.algo.ts:682
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	txn Sender
 	frame_bury 1 // storage account//withdrawal
 
 	// *if0_condition
-	// src/Immersve.algo.ts:686
+	// src/Immersve.algo.ts:685
 	// globals.round < withdrawal.round
 	global Round
 	frame_dig 1 // storage account//withdrawal
@@ -2680,14 +2675,14 @@ cardWithdrawEarly:
 *while_0:
 
 *while_0_continue:
-	// src/Immersve.algo.ts:689
+	// src/Immersve.algo.ts:688
 	// globals.opcodeBudget < 2500
 	global OpcodeBudget
 	int 2500
 	<
 	bz *while_0_end
 
-	// src/Immersve.algo.ts:690
+	// src/Immersve.algo.ts:689
 	// increaseOpcodeBudget()
 	itxn_begin
 	int appl
@@ -2704,7 +2699,7 @@ cardWithdrawEarly:
 	b *while_0
 
 *while_0_end:
-	// src/Immersve.algo.ts:693
+	// src/Immersve.algo.ts:692
 	// assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value))
 	frame_dig -3 // withdrawal_hash: bytes32
 	frame_dig -4 // early_withdrawal_sig: bytes32
@@ -2714,14 +2709,14 @@ cardWithdrawEarly:
 	assert
 
 *if0_end:
-	// src/Immersve.algo.ts:697
+	// src/Immersve.algo.ts:696
 	// this.withdrawFunds(withdrawal)
 	frame_dig 1 // storage account//withdrawal
 	frame_dig 0 // storage key//withdrawal
 	app_local_get
 	callsub withdrawFunds
 
-	// src/Immersve.algo.ts:700
+	// src/Immersve.algo.ts:699
 	// this.withdrawals(this.txn.sender, withdrawal_hash).delete()
 	txn Sender
 	frame_dig -3 // withdrawal_hash: bytes32
@@ -2748,7 +2743,7 @@ cardWithdrawEarly:
 	method "assetAllowlistRemove(uint64)void"
 	method "partnerAcceptAsset(pay,string,uint64)void"
 	method "partnerRejectAsset(string,uint64)void"
-	method "cardDebit(string,address,uint64,uint64)void"
+	method "cardDebit(address,uint64,uint64)void"
 	method "cardRefund(string,address,uint64,uint64)void"
 	method "settle(address,uint64,uint64)void"
 	method "cardEnableAsset(pay,string,address,uint64)void"

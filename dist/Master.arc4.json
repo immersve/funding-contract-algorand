@@ -263,10 +263,6 @@
       "desc": "Debits the specified amount of the given asset from the card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
-          "name": "partner",
-          "type": "string"
-        },
-        {
           "name": "card",
           "type": "address",
           "desc": "The card account from which the asset will be debited."

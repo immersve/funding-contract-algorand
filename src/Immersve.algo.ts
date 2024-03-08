@@ -484,7 +484,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param card The card account from which the asset will be debited.
      * @param amount The amount of the asset to be debited.
      */
-    cardDebit(partner: string, card: Address, asset: AssetID, amount: uint64): void {
+    cardDebit(card: Address, asset: AssetID, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
@@ -652,7 +652,6 @@ export class Master extends Contract.extend(Ownable) {
      * @param partner Funding Channel name
      * @param card Address to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
-     * @param early_withdrawal_sig Signature of withdrawal_hash from the early_withdrawal_pubkey
      */
     @allow.call('NoOp')
     @allow.call('CloseOut')
