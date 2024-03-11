@@ -26,7 +26,7 @@
     },
     {
       "name": "deploy",
-      "desc": "Deploy a Partner, setting the owner as provided",
+      "desc": "Deploy a partner channel, setting the owner as provided",
       "args": [
         {
           "name": "owner",
@@ -47,7 +47,7 @@
     },
     {
       "name": "destroy",
-      "desc": "Destroy the smart contract, sending all Algo to the owner account. This can only be done if there are no active cards",
+      "desc": "Destroy the smart contract, sending all Algo to the owner account. This can only be done if there are no active card funds",
       "args": [],
       "returns": {
         "type": "void"
@@ -82,8 +82,8 @@
       }
     },
     {
-      "name": "partnerCreate",
-      "desc": "Creates a partner account and associates it with the provided partner name.Only the owner of the contract can call this function.",
+      "name": "partnerChannelCreate",
+      "desc": "Creates a partner channel account and associates it with the provided partner channel name.Only the owner of the contract can call this function.",
       "args": [
         {
           "name": "mbr",
@@ -91,21 +91,21 @@
           "desc": "The PayTxn object representing the payment transaction."
         },
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
-          "desc": "The name of the partner."
+          "desc": "The name of the partner channel."
         }
       ],
       "returns": {
         "type": "address",
-        "desc": "The address of the newly created partner account."
+        "desc": "The address of the newly created partner channel account."
       }
     },
     {
-      "name": "partnerClose",
+      "name": "partnerChannelClose",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string"
         }
       ],
@@ -114,7 +114,7 @@
       }
     },
     {
-      "name": "cardCreate",
+      "name": "cardFundCreate",
       "desc": "Create account. This generates a brand new account and funds the minimum balance requirement",
       "args": [
         {
@@ -122,11 +122,11 @@
           "type": "pay"
         },
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string"
         },
         {
-          "name": "cardHolder",
+          "name": "cardFundOwner",
           "type": "address",
           "desc": "Address to have control over asset withdrawals"
         }
@@ -137,16 +137,16 @@
       }
     },
     {
-      "name": "cardClose",
+      "name": "cardFundClose",
       "desc": "Close account. This permanently removes the rekey and deletes the account from the ledger",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
           "desc": "Funding Channel name"
         },
         {
-          "name": "cardHolder",
+          "name": "cardFundOwner",
           "type": "address",
           "desc": "Address which has control over asset withdrawals"
         },
@@ -161,13 +161,13 @@
       }
     },
     {
-      "name": "cardRecover",
+      "name": "cardFundRecover",
       "desc": "Recovers funds from an old card and transfers them to a new card.Only the owner of the contract can perform this operation.",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
-          "desc": "The partner associated with the cards."
+          "desc": "The partner channel associated with the card funds"
         },
         {
           "name": "oldCardHolder",
@@ -218,8 +218,8 @@
       }
     },
     {
-      "name": "partnerAcceptAsset",
-      "desc": "Allows the specified asset to be transferred for users of this partner.",
+      "name": "partnerChannelAcceptAsset",
+      "desc": "Allows the specified asset to be transferred for users of this partner channel.",
       "args": [
         {
           "name": "mbr",
@@ -227,7 +227,7 @@
           "desc": "The PayTxn object representing the transaction."
         },
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string"
         },
         {
@@ -241,11 +241,11 @@
       }
     },
     {
-      "name": "partnerRejectAsset",
+      "name": "partnerChannelRejectAsset",
       "desc": "Revokes an asset by closing out its balance and transferring the minimum balance to the sender.",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string"
         },
         {
@@ -259,7 +259,7 @@
       }
     },
     {
-      "name": "cardDebit",
+      "name": "cardFundDebit",
       "desc": "Debits the specified amount of the given asset from the card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
@@ -305,11 +305,11 @@
       ]
     },
     {
-      "name": "cardRefund",
+      "name": "cardFundRefund",
       "desc": "Refunds a specified amount of an asset to a card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string"
         },
         {
@@ -396,7 +396,7 @@
       ]
     },
     {
-      "name": "cardEnableAsset",
+      "name": "cardFundEnableAsset",
       "desc": "Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account",
       "args": [
         {
@@ -404,7 +404,7 @@
           "type": "pay"
         },
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
           "desc": "Funding Channel name"
         },
@@ -424,11 +424,11 @@
       }
     },
     {
-      "name": "cardDisableAsset",
+      "name": "cardFundDisableAsset",
       "desc": "Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
           "desc": "The funding channel associated with the card."
         },
@@ -448,11 +448,11 @@
       }
     },
     {
-      "name": "cardWithdrawalRequest",
+      "name": "cardFundWithdrawalRequest",
       "desc": "Allows the Card Holder (or contract owner) to send an amount of assets from the account",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
           "desc": "Funding Channel name"
         },
@@ -482,11 +482,11 @@
       }
     },
     {
-      "name": "cardWithdrawalCancel",
+      "name": "cardFundWithdrawalCancel",
       "desc": "Allows the Card Holder (or contract owner) to cancel a withdrawal request",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
           "desc": "Funding Channel name"
         },
@@ -506,11 +506,11 @@
       }
     },
     {
-      "name": "cardWithdraw",
+      "name": "cardFundWithdraw",
       "desc": "Allows the Card Holder to send an amount of assets from the account",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
           "desc": "Funding Channel name"
         },
@@ -530,13 +530,13 @@
       }
     },
     {
-      "name": "cardWithdrawEarly",
+      "name": "cardFundWithdrawEarly",
       "desc": "Withdraws funds before the withdrawal round has lapsed, by using the early withdrawal signature provided by Immersve.",
       "args": [
         {
-          "name": "partner",
+          "name": "partnerChannel",
           "type": "string",
-          "desc": "The partner associated with the card."
+          "desc": "The partner channel associated with the card."
         },
         {
           "name": "card",
@@ -643,7 +643,7 @@
       "name": "Withdrawal",
       "args": [
         {
-          "name": "card",
+          "name": "cardFund",
           "type": "address",
           "desc": "Funding Source withdrawn from"
         },

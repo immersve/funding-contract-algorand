@@ -173,8 +173,8 @@ describe('Immersve', () => {
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
-        await appClient.partnerCreate(
-            { mbr, partner: 'Pera' },
+        await appClient.partnerChannelCreate(
+            { mbr, partnerChannel: 'Pera' },
             { sendParams: { fee: microAlgos(5_000), populateAppCallResources: true } }
         );
     });
@@ -190,10 +190,10 @@ describe('Immersve', () => {
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
-        const result = await appClient.partnerAcceptAsset(
+        const result = await appClient.partnerChannelAcceptAsset(
             {
                 mbr,
-                partner: 'Pera',
+                partnerChannel: 'Pera',
                 asset: fakeUSDC,
             },
             {
@@ -220,11 +220,11 @@ describe('Immersve', () => {
             amount: 100_000 + boxCost,
             suggestedParams: await algod.getTransactionParams().do(),
         });
-        const result = await appClient.cardCreate(
+        const result = await appClient.cardFundCreate(
             {
                 mbr,
-                partner: 'Pera',
-                cardHolder: user.addr,
+                partnerChannel: 'Pera',
+                cardFundOwner: user.addr,
             },
             {
                 sendParams: {
@@ -249,10 +249,10 @@ describe('Immersve', () => {
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
-        const result = await appClient.cardEnableAsset(
+        const result = await appClient.cardFundEnableAsset(
             {
                 mbr,
-                partner: 'Pera',
+                partnerChannel: 'Pera',
                 card: newCardAddress,
                 asset: fakeUSDC,
             },
@@ -289,9 +289,8 @@ describe('Immersve', () => {
     });
 
     test('User spends, Immersve debits', async () => {
-        const result = await appClient.cardDebit(
+        const result = await appClient.cardFundDebit(
             {
-                partner: 'Pera',
                 card: newCardAddress,
                 asset: fakeUSDC,
                 amount: 5_000_000,
@@ -322,9 +321,9 @@ describe('Immersve', () => {
     });
 
     test('Recover Card', async () => {
-        const result = await appClient.cardRecover(
+        const result = await appClient.cardFundRecover(
             {
-                partner: 'Pera',
+                partnerChannel: 'Pera',
                 oldCardHolder: user.addr,
                 newCardHolder: user2.addr,
             },
@@ -340,9 +339,9 @@ describe('Immersve', () => {
     });
 
     test('User creates withdrawal request', async () => {
-        const result = await appClient.optIn.cardWithdrawalRequest(
+        const result = await appClient.optIn.cardFundWithdrawalRequest(
             {
-                partner: 'Pera',
+                partnerChannel: 'Pera',
                 card: newCardAddress,
                 recipient: user2.addr,
                 asset: fakeUSDC,
@@ -380,9 +379,9 @@ describe('Immersve', () => {
     });
 
     test('Complete withdrawal request', async () => {
-        const result = await appClient.closeOut.cardWithdraw(
+        const result = await appClient.closeOut.cardFundWithdraw(
             {
-                partner: 'Pera',
+                partnerChannel: 'Pera',
                 card: newCardAddress,
                 withdrawal_hash: withdrawalRequest,
             },
@@ -401,9 +400,9 @@ describe('Immersve', () => {
     // TODO: cardWithdrawEarly test
 
     test('Disable FakeUSDC for card', async () => {
-        const result = await appClient.cardDisableAsset(
+        const result = await appClient.cardFundDisableAsset(
             {
-                partner: 'Pera',
+                partnerChannel: 'Pera',
                 card: newCardAddress,
                 asset: fakeUSDC,
             },
@@ -420,10 +419,10 @@ describe('Immersve', () => {
     });
 
     test('Close card', async () => {
-        const result = await appClient.cardClose(
+        const result = await appClient.cardFundClose(
             {
-                partner: 'Pera',
-                cardHolder: user2.addr,
+                partnerChannel: 'Pera',
+                cardFundOwner: user2.addr,
                 card: newCardAddress,
             },
             {
@@ -438,9 +437,9 @@ describe('Immersve', () => {
     });
 
     test('Reject FakeUSDC for Partner', async () => {
-        const result = await appClient.partnerRejectAsset(
+        const result = await appClient.partnerChannelRejectAsset(
             {
-                partner: 'Pera',
+                partnerChannel: 'Pera',
                 asset: fakeUSDC,
             },
             {
@@ -455,9 +454,9 @@ describe('Immersve', () => {
     });
 
     test('Close Partner', async () => {
-        const result = await appClient.partnerClose(
+        const result = await appClient.partnerChannelClose(
             {
-                partner: 'Pera',
+                partnerChannel: 'Pera',
             },
             {
                 sendParams: {

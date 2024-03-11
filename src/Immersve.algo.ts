@@ -26,17 +26,17 @@
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 
-// Card = Partner + Card Holder
-type CardDetails = {
-    partner: string;
-    cardHolder: Address;
+// CardFundDetails = partnerChannel + cardFundOwner
+type CardFundDetails = {
+    partnerChannel: string;
+    cardFundOwner: Address;
 };
 
 // Withdrawal request for an amount of an asset, where the round indicates the earliest it can be made
 type WithdrawalRequest = {
     nonce: uint64;
     round: uint64;
-    card: Address;
+    cardFund: Address;
     recipient: Address;
     asset: AssetID;
     amount: uint64;
@@ -61,26 +61,27 @@ class ControlledAddress extends Contract {
 
 export class Master extends Contract.extend(Ownable) {
     // ========== Storage ==========
-    // Cards
-    cards = BoxMap<CardDetails, Address>({ prefix: 'c' });
+    // Card Funds
+    card_funds = BoxMap<CardFundDetails, Address>({ prefix: 'cf' });
 
-    active_cards = GlobalStateKey<uint64>({ key: 'c' });
+    card_funds_active_count = GlobalStateKey<uint64>({ key: 'cfac' });
 
-    // Partners
-    partners = BoxMap<string, Address>({ prefix: 'p' });
+    // Partner Channels
+    partner_channels = BoxMap<string, Address>({ prefix: 'pc' });
 
-    active_partners = GlobalStateKey<uint64>({ key: 'p' });
+    partner_channels_active_count = GlobalStateKey<uint64>({ key: 'pcac' });
 
     // Rounds to wait
-    withdrawal_wait_time = GlobalStateKey<uint64>({ key: 'w' });
+    withdrawal_wait_time = GlobalStateKey<uint64>({ key: 'wwt' });
 
     // Early withdrawal public key
-    early_withdrawal_pubkey = GlobalStateKey<bytes32>({ key: 'k' });
+    early_withdrawal_pubkey = GlobalStateKey<bytes32>({ key: 'ewpk' });
 
     // Withdrawal requests
     withdrawals = LocalStateMap<bytes32, WithdrawalRequest>({ maxKeys: 15 });
 
-    withdrawal_nonce = LocalStateKey<uint64>({ key: 'n' });
+    // Withdrawal nonce
+    withdrawal_nonce = LocalStateKey<uint64>({ key: 'wn' });
 
     // ========== Events ==========
     CardCreated = new EventLogger<{
@@ -126,7 +127,7 @@ export class Master extends Contract.extend(Ownable) {
      */
     Withdrawal = new EventLogger<{
         /** Funding Source withdrawn from */
-        card: Address;
+        cardFund: Address;
         /** Recipient address withdrawn to */
         recipient: Address;
         /** Asset withdrawn */
@@ -143,13 +144,16 @@ export class Master extends Contract.extend(Ownable) {
      * @param card Address to check
      * @returns True if the sender is the Card Holder of the card
      */
-    private isCardHolder(partner: string, card: Address): boolean {
-        return this.cards({ partner: partner, cardHolder: this.txn.sender } as CardDetails).value === card;
+    private isCardFundOwner(partnerChannel: string, card: Address): boolean {
+        return (
+            this.card_funds({ partnerChannel: partnerChannel, cardFundOwner: this.txn.sender } as CardFundDetails)
+                .value === card
+        );
     }
 
     private withdrawFunds(withdrawal: WithdrawalRequest): void {
         sendAssetTransfer({
-            sender: withdrawal.card,
+            sender: withdrawal.cardFund,
             assetReceiver: withdrawal.recipient,
             xferAsset: withdrawal.asset,
             assetAmount: withdrawal.amount,
@@ -157,7 +161,7 @@ export class Master extends Contract.extend(Ownable) {
 
         // Emit withdrawal event
         this.Withdrawal.log({
-            card: withdrawal.card,
+            cardFund: withdrawal.cardFund,
             recipient: withdrawal.recipient,
             asset: withdrawal.asset,
             amount: withdrawal.amount,
@@ -167,7 +171,7 @@ export class Master extends Contract.extend(Ownable) {
 
     // ========== External Methods ==========
     /**
-     * Deploy a Partner, setting the owner as provided
+     * Deploy a partner channel, setting the owner as provided
      */
     @allow.create('NoOp')
     deploy(owner: Address): Address {
@@ -185,16 +189,16 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
-     * Destroy the smart contract, sending all Algo to the owner account. This can only be done if there are no active cards
+     * Destroy the smart contract, sending all Algo to the owner account. This can only be done if there are no active card funds
      */
     @allow.call('DeleteApplication')
     destroy(): void {
         this.onlyOwner();
 
-        // There must not be any active cards
-        assert(!this.active_cards.value);
-        // There must not be any active partners
-        assert(!this.active_partners.value);
+        // There must not be any active card fund
+        assert(!this.card_funds_active_count.value);
+        // There must not be any active partner channels
+        assert(!this.partner_channels_active_count.value);
 
         sendPayment({
             receiver: this.app.address,
@@ -225,19 +229,19 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
-     * Creates a partner account and associates it with the provided partner name.
+     * Creates a partner channel account and associates it with the provided partner channel name.
      * Only the owner of the contract can call this function.
      *
      * @param mbr - The PayTxn object representing the payment transaction.
-     * @param partner - The name of the partner.
-     * @returns The address of the newly created partner account.
+     * @param partnerChannel - The name of the partner channel.
+     * @returns The address of the newly created partner channel account.
      */
-    partnerCreate(mbr: PayTxn, partner: string): Address {
+    partnerChannelCreate(mbr: PayTxn, partnerChannel: string): Address {
         this.onlyOwner();
 
-        assert(!this.partners(partner).exists);
+        assert(!this.partner_channels(partnerChannel).exists);
 
-        const boxCost = 2500 + 400 * (3 + len(partner) + 32);
+        const boxCost = 2500 + 400 * (3 + len(partnerChannel) + 32);
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
@@ -245,7 +249,7 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         // Create a new account
-        const partnerAddr = sendMethodCall<typeof ControlledAddress.prototype.new>({
+        const partnerChannelAddr = sendMethodCall<typeof ControlledAddress.prototype.new>({
             onCompletion: OnCompletion.DeleteApplication,
             approvalProgram: ControlledAddress.approvalProgram(),
             clearStateProgram: ControlledAddress.clearProgram(),
@@ -253,53 +257,53 @@ export class Master extends Contract.extend(Ownable) {
 
         // Fund the account with a minimum balance
         sendPayment({
-            receiver: partnerAddr,
+            receiver: partnerChannelAddr,
             amount: globals.minBalance,
         });
 
-        this.partners(partner).value = partnerAddr;
+        this.partner_channels(partnerChannel).value = partnerChannelAddr;
 
-        // Increment active partners
-        this.active_partners.value = this.active_partners.value + 1;
+        // Increment active partner channels
+        this.partner_channels_active_count.value = this.partner_channels_active_count.value + 1;
 
-        return partnerAddr;
+        return partnerChannelAddr;
     }
 
-    partnerClose(partner: string): void {
+    partnerChannelClose(partnerChannel: string): void {
         this.onlyOwner();
 
         sendPayment({
-            sender: this.partners(partner).value,
-            receiver: this.partners(partner).value,
+            sender: this.partner_channels(partnerChannel).value,
+            receiver: this.partner_channels(partnerChannel).value,
             amount: 0,
             closeRemainderTo: this.txn.sender,
         });
 
-        const boxCost = 2500 + 400 * (3 + len(partner) + 32);
+        const boxCost = 2500 + 400 * (3 + len(partnerChannel) + 32);
 
         sendPayment({
             receiver: this.txn.sender,
             amount: boxCost,
         });
 
-        // Delete the partner from the box
-        this.partners(partner).delete();
+        // Delete the partner channel from the box
+        this.partner_channels(partnerChannel).delete();
 
-        // Decrement active partners
-        this.active_partners.value = this.active_partners.value - 1;
+        // Decrement active partner channels
+        this.partner_channels_active_count.value = this.partner_channels_active_count.value - 1;
     }
 
     /**
      * Create account. This generates a brand new account and funds the minimum balance requirement
-     * @param cardHolder Address to have control over asset withdrawals
+     * @param cardFundOwner Address to have control over asset withdrawals
      * @returns Newly generated account used by their card
      */
-    cardCreate(mbr: PayTxn, partner: string, cardHolder: Address): Address {
+    cardFundCreate(mbr: PayTxn, partnerChannel: string, cardFundOwner: Address): Address {
         this.onlyOwner();
 
-        assert(this.partners(partner).exists);
+        assert(this.partner_channels(partnerChannel).exists);
 
-        const cardFunds: CardDetails = { partner: partner, cardHolder: cardHolder };
+        const cardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: cardFundOwner };
         const boxCost = 2500 + 400 * (1 + len(cardFunds) + 32);
 
         verifyPayTxn(mbr, {
@@ -321,10 +325,10 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         // Store new card along with Card Holder
-        this.cards(cardFunds).value = cardAddr;
+        this.card_funds(cardFunds).value = cardAddr;
 
-        // Increment active cards
-        this.active_cards.value = this.active_cards.value + 1;
+        // Increment active card funds
+        this.card_funds_active_count.value = this.card_funds_active_count.value + 1;
 
         // Return the new account address
         return cardAddr;
@@ -332,11 +336,11 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Close account. This permanently removes the rekey and deletes the account from the ledger
-     * @param partner Funding Channel name
-     * @param cardHolder Address which has control over asset withdrawals
+     * @param partnerChannel Funding Channel name
+     * @param cardFundOwner Address which has control over asset withdrawals
      * @param card Address to close
      */
-    cardClose(partner: string, cardHolder: Address, card: Address): void {
+    cardFundClose(partnerChannel: string, cardFundOwner: Address, card: Address): void {
         this.onlyOwner();
 
         sendPayment({
@@ -346,7 +350,7 @@ export class Master extends Contract.extend(Ownable) {
             closeRemainderTo: this.txn.sender,
         });
 
-        const cardFunds: CardDetails = { partner: partner, cardHolder: cardHolder };
+        const cardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: cardFundOwner };
         const boxCost = 2500 + 400 * (1 + len(cardFunds) + 32);
 
         sendPayment({
@@ -355,28 +359,28 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         // Delete the card from the box
-        this.cards(cardFunds).delete();
+        this.card_funds(cardFunds).delete();
 
-        // Decrement active cards
-        this.active_cards.value = this.active_cards.value - 1;
+        // Decrement active card funds
+        this.card_funds_active_count.value = this.card_funds_active_count.value - 1;
     }
 
     /**
      * Recovers funds from an old card and transfers them to a new card.
      * Only the owner of the contract can perform this operation.
      *
-     * @param partner - The partner associated with the cards.
+     * @param partnerChannel - The partner channel associated with the card funds
      * @param oldCardHolder - The address of the old card holder.
      * @param newCardHolder - The address of the new card holder.
      */
-    cardRecover(partner: string, oldCardHolder: Address, newCardHolder: Address): void {
+    cardFundRecover(partnerChannel: string, oldCardHolder: Address, newCardHolder: Address): void {
         this.onlyOwner();
 
-        const oldCardFunds: CardDetails = { partner: partner, cardHolder: oldCardHolder };
-        const newCardFunds: CardDetails = { partner: partner, cardHolder: newCardHolder };
-        this.cards(newCardFunds).value = this.cards(oldCardFunds).value;
+        const oldCardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: oldCardHolder };
+        const newCardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: newCardHolder };
+        this.card_funds(newCardFunds).value = this.card_funds(oldCardFunds).value;
 
-        this.cards(oldCardFunds).delete();
+        this.card_funds(oldCardFunds).delete();
     }
 
     /**
@@ -426,12 +430,12 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
-     * Allows the specified asset to be transferred for users of this partner.
+     * Allows the specified asset to be transferred for users of this partner channel.
      *
      * @param mbr - The PayTxn object representing the transaction.
      * @param asset - The ID of the asset to be allowed.
      */
-    partnerAcceptAsset(mbr: PayTxn, partner: string, asset: AssetID): void {
+    partnerChannelAcceptAsset(mbr: PayTxn, partnerChannel: string, asset: AssetID): void {
         this.onlyOwner();
 
         verifyPayTxn(mbr, {
@@ -441,13 +445,13 @@ export class Master extends Contract.extend(Ownable) {
 
         sendPayment({
             sender: this.app.address,
-            receiver: this.partners(partner).value,
+            receiver: this.partner_channels(partnerChannel).value,
             amount: globals.assetOptInMinBalance,
         });
 
         sendAssetTransfer({
-            sender: this.partners(partner).value,
-            assetReceiver: this.partners(partner).value,
+            sender: this.partner_channels(partnerChannel).value,
+            assetReceiver: this.partner_channels(partnerChannel).value,
             xferAsset: asset,
             assetAmount: 0,
         });
@@ -458,20 +462,20 @@ export class Master extends Contract.extend(Ownable) {
      *
      * @param asset The ID of the asset to revoke.
      */
-    partnerRejectAsset(partner: string, asset: AssetID): void {
+    partnerChannelRejectAsset(partnerChannel: string, asset: AssetID): void {
         this.onlyOwner();
 
         // Asset balance must be zero to close out of it. Consider settling the asset balance before revoking it.
         sendAssetTransfer({
-            sender: this.partners(partner).value,
-            assetReceiver: this.partners(partner).value,
-            assetCloseTo: this.partners(partner).value,
+            sender: this.partner_channels(partnerChannel).value,
+            assetReceiver: this.partner_channels(partnerChannel).value,
+            assetCloseTo: this.partner_channels(partnerChannel).value,
             xferAsset: asset,
             assetAmount: 0,
         });
 
         sendPayment({
-            sender: this.partners(partner).value,
+            sender: this.partner_channels(partnerChannel).value,
             receiver: this.txn.sender,
             amount: globals.assetOptInMinBalance,
         });
@@ -484,7 +488,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param card The card account from which the asset will be debited.
      * @param amount The amount of the asset to be debited.
      */
-    cardDebit(card: Address, asset: AssetID, amount: uint64): void {
+    cardFundDebit(card: Address, asset: AssetID, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
@@ -508,11 +512,11 @@ export class Master extends Contract.extend(Ownable) {
      * @param card - The card account to refund the asset to.
      * @param amount - The amount of the asset to refund.
      */
-    cardRefund(partner: string, card: Address, asset: AssetID, amount: uint64): void {
+    cardFundRefund(partnerChannel: string, card: Address, asset: AssetID, amount: uint64): void {
         this.onlyOwner();
 
         sendAssetTransfer({
-            sender: this.partners(partner).value,
+            sender: this.partner_channels(partnerChannel).value,
             assetReceiver: card,
             xferAsset: asset,
             assetAmount: amount,
@@ -552,16 +556,16 @@ export class Master extends Contract.extend(Ownable) {
     /**
      * Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account
      *
-     * @param partner Funding Channel name
+     * @param partnerChannel Funding Channel name
      * @param card Address to add asset to
      * @param asset Asset to add
      */
-    cardEnableAsset(mbr: PayTxn, partner: string, card: Address, asset: AssetID): void {
-        assert(this.isOwner() || this.isCardHolder(partner, card));
+    cardFundEnableAsset(mbr: PayTxn, partnerChannel: string, card: Address, asset: AssetID): void {
+        assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
         // FIX: frame_dig -1 error when uncommented
         // This same logic should be on masterAcceptAsset and cardDebit
-        // assert(this.partners(partner).value.isOptedInToAsset(asset));
+        // assert(this.partnerChannels(partnerChannel).value.isOptedInToAsset(asset));
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
@@ -584,12 +588,12 @@ export class Master extends Contract.extend(Ownable) {
     /**
      * Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account
      *
-     * @param partner - The funding channel associated with the card.
+     * @param partnerChannel - The funding channel associated with the card.
      * @param card - The address of the card.
      * @param asset - The ID of the asset to be removed.
      */
-    cardDisableAsset(partner: string, card: Address, asset: AssetID): void {
-        assert(this.isOwner() || this.isCardHolder(partner, card));
+    cardFundDisableAsset(partnerChannel: string, card: Address, asset: AssetID): void {
+        assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
         sendAssetTransfer({
             sender: card,
@@ -608,7 +612,7 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Allows the Card Holder (or contract owner) to send an amount of assets from the account
-     * @param partner Funding Channel name
+     * @param partnerChannel Funding Channel name
      * @param card Address to withdraw from
      * @param asset Asset to withdraw
      * @param amount Amount to withdraw
@@ -616,13 +620,19 @@ export class Master extends Contract.extend(Ownable) {
      */
     @allow.call('NoOp')
     @allow.call('OptIn')
-    cardWithdrawalRequest(partner: string, card: Address, recipient: Address, asset: AssetID, amount: uint64): bytes32 {
-        assert(this.isOwner() || this.isCardHolder(partner, card));
+    cardFundWithdrawalRequest(
+        partnerChannel: string,
+        card: Address,
+        recipient: Address,
+        asset: AssetID,
+        amount: uint64
+    ): bytes32 {
+        assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
         const withdrawal: WithdrawalRequest = {
             nonce: this.withdrawal_nonce(this.txn.sender).value,
             round: globals.round + this.withdrawal_wait_time.value,
-            card: card,
+            cardFund: card,
             recipient: recipient,
             asset: asset,
             amount: amount,
@@ -637,26 +647,26 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Allows the Card Holder (or contract owner) to cancel a withdrawal request
-     * @param partner Funding Channel name
+     * @param partnerChannel Funding Channel name
      * @param card Address to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
-    cardWithdrawalCancel(partner: string, card: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isCardHolder(partner, card));
+    cardFundWithdrawalCancel(partnerChannel: string, card: Address, withdrawal_hash: bytes32): void {
+        assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
 
     /**
      * Allows the Card Holder to send an amount of assets from the account
-     * @param partner Funding Channel name
+     * @param partnerChannel Funding Channel name
      * @param card Address to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
     @allow.call('NoOp')
     @allow.call('CloseOut')
-    cardWithdraw(partner: string, card: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isCardHolder(partner, card));
+    cardFundWithdraw(partnerChannel: string, card: Address, withdrawal_hash: bytes32): void {
+        assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
@@ -671,13 +681,18 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Withdraws funds before the withdrawal round has lapsed, by using the early withdrawal signature provided by Immersve.
-     * @param partner - The partner associated with the card.
+     * @param partnerChannel - The partner channel associated with the card.
      * @param card - The address of the card.
      * @param withdrawal_hash - The hash of the withdrawal.
      * @param early_withdrawal_sig - The signature for early withdrawal.
      */
-    cardWithdrawEarly(partner: string, card: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes32): void {
-        assert(this.isCardHolder(partner, card));
+    cardFundWithdrawEarly(
+        partnerChannel: string,
+        card: Address,
+        withdrawal_hash: bytes32,
+        early_withdrawal_sig: bytes32
+    ): void {
+        assert(this.isCardFundOwner(partnerChannel, card));
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
