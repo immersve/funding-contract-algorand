@@ -361,11 +361,22 @@ describe('Immersve', () => {
     });
 
     test('Settle debits', async () => {
+        const settlementNonce = await appClient.getNextSettlementNonce(
+            {},
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
         const result = await appClient.settle(
             {
                 recipient: circle.addr,
                 asset: fakeUSDC,
                 amount: 5_000_000,
+                nonce: settlementNonce.return as bigint,
             },
             {
                 sendParams: {

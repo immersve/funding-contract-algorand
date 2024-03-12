@@ -355,6 +355,14 @@
       ]
     },
     {
+      "name": "getNextSettlementNonce",
+      "readonly": true,
+      "args": [],
+      "returns": {
+        "type": "uint64"
+      }
+    },
+    {
       "name": "settle",
       "desc": "Settles a payment by transferring an asset to the specified recipient.Only the owner of the contract can call this function.",
       "args": [
@@ -371,6 +379,10 @@
           "name": "amount",
           "type": "uint64",
           "desc": "The amount of the asset to be transferred."
+        },
+        {
+          "name": "nonce",
+          "type": "uint64"
         }
       ],
       "returns": {
@@ -381,6 +393,11 @@
           "name": "Settlement",
           "args": [
             {
+              "name": "recipient",
+              "type": "address",
+              "desc": "Settlement destination address"
+            },
+            {
               "name": "asset",
               "type": "uint64",
               "desc": "Asset being settled"
@@ -389,6 +406,11 @@
               "name": "amount",
               "type": "uint64",
               "desc": "Amount being settled"
+            },
+            {
+              "name": "nonce",
+              "type": "uint64",
+              "desc": "Settlement nonce to prevent duplicate settlements"
             }
           ],
           "desc": "Settlement event"
@@ -627,6 +649,11 @@
       "name": "Settlement",
       "args": [
         {
+          "name": "recipient",
+          "type": "address",
+          "desc": "Settlement destination address"
+        },
+        {
           "name": "asset",
           "type": "uint64",
           "desc": "Asset being settled"
@@ -635,6 +662,11 @@
           "name": "amount",
           "type": "uint64",
           "desc": "Amount being settled"
+        },
+        {
+          "name": "nonce",
+          "type": "uint64",
+          "desc": "Settlement nonce to prevent duplicate settlements"
         }
       ],
       "desc": "Settlement event"

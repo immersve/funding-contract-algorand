@@ -83,6 +83,9 @@ export class Master extends Contract.extend(Ownable) {
     // Withdrawal nonce
     withdrawal_nonce = LocalStateKey<uint64>({ key: 'wn' });
 
+    // Settlement nonce
+    settlement_nonce = GlobalStateKey<uint64>({ key: 'sn' });
+
     // ========== Events ==========
     CardCreated = new EventLogger<{
         // TODO
@@ -116,10 +119,14 @@ export class Master extends Contract.extend(Ownable) {
      * Settlement event
      */
     Settlement = new EventLogger<{
+        /** Settlement destination address */
+        recipient: Address;
         /** Asset being settled */
         asset: AssetID;
         /** Amount being settled */
         amount: uint64;
+        /** Settlement nonce to prevent duplicate settlements */
+        nonce: uint64;
     }>();
 
     /**
@@ -529,6 +536,11 @@ export class Master extends Contract.extend(Ownable) {
         });
     }
 
+    @abi.readonly
+    getNextSettlementNonce(): uint64 {
+        return this.settlement_nonce.value;
+    }
+
     /**
      * Settles a payment by transferring an asset to the specified recipient.
      * Only the owner of the contract can call this function.
@@ -536,8 +548,11 @@ export class Master extends Contract.extend(Ownable) {
      * @param recipient The address of the recipient.
      * @param amount The amount of the asset to be transferred.
      */
-    settle(recipient: Address, asset: AssetID, amount: uint64): void {
+    settle(recipient: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
         this.onlyOwner();
+
+        // Ensure the nonce is correct
+        assert(this.settlement_nonce.value === nonce);
 
         sendAssetTransfer({
             sender: this.app.address,
@@ -547,9 +562,14 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         this.Settlement.log({
+            recipient: recipient,
             asset: asset,
             amount: amount,
+            nonce: nonce,
         });
+
+        // Increment the settlement nonce
+        this.settlement_nonce.value = this.settlement_nonce.value + 1;
     }
 
     // ===== Card Holder Methods =====
