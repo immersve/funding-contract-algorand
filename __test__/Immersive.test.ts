@@ -127,7 +127,23 @@ describe('Immersve', () => {
     });
 
     test('Set withdrawal rounds', async () => {
-        const result = await appClient.setWithdrawalRounds({ rounds: 0 });
+        const result = await appClient.setWithdrawalRounds({ rounds: 1 });
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Set settlement address', async () => {
+        const result = await appClient.setSettlementAddress(
+            {
+                newSettlementAddress: circle.addr,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
 
         expect(result.confirmation!.poolError).toBe('');
     });
@@ -373,7 +389,6 @@ describe('Immersve', () => {
 
         const result = await appClient.settle(
             {
-                recipient: circle.addr,
                 asset: fakeUSDC,
                 amount: 5_000_000,
                 nonce: settlementNonce.return as bigint,

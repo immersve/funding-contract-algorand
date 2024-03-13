@@ -34,12 +34,12 @@ type CardFundDetails = {
 
 // Withdrawal request for an amount of an asset, where the round indicates the earliest it can be made
 type WithdrawalRequest = {
-    nonce: uint64;
-    round: uint64;
     cardFund: Address;
     recipient: Address;
     asset: AssetID;
     amount: uint64;
+    round: uint64;
+    nonce: uint64;
 };
 
 class ControlledAddress extends Contract {
@@ -86,9 +86,28 @@ export class Master extends Contract.extend(Ownable) {
     // Settlement nonce
     settlement_nonce = GlobalStateKey<uint64>({ key: 'sn' });
 
+    // Settlement address
+    settlement_address = GlobalStateKey<Address>({ key: 'sa' });
+
     // ========== Events ==========
-    CardCreated = new EventLogger<{
-        // TODO
+    /**
+     * Partner Channel Created event
+     */
+    PartnerChannelCreated = new EventLogger<{
+        /** Partner Channel */
+        partnerChannel: string;
+    }>();
+
+    /**
+     * Card Created event
+     */
+    CardFundCreated = new EventLogger<{
+        /** Card Fund Owner */
+        cardFundOwner: Address;
+        /** Card Fund */
+        cardFund: Address;
+        /** Partner Channel */
+        partnerChannel: string;
     }>();
 
     /**
@@ -115,6 +134,13 @@ export class Master extends Contract.extend(Ownable) {
         amount: uint64;
     }>();
 
+    SettlementAddressChanged = new EventLogger<{
+        /** Old settlement address  */
+        oldSettlementAddress: Address;
+        /** New settlement address */
+        newSettlementAddress: Address;
+    }>();
+
     /**
      * Settlement event
      */
@@ -126,6 +152,24 @@ export class Master extends Contract.extend(Ownable) {
         /** Amount being settled */
         amount: uint64;
         /** Settlement nonce to prevent duplicate settlements */
+        nonce: uint64;
+    }>();
+
+    /**
+     * Withdrawal Request event
+     */
+    WithdrawalRequest = new EventLogger<{
+        /** Funding Source to withdraw from */
+        cardFund: Address;
+        /** Recipient address to withdraw to */
+        recipient: Address;
+        /** Asset to withdraw */
+        asset: AssetID;
+        /** Amount to withdraw */
+        amount: uint64;
+        /** Round that must be reached before withdrawal can be completed */
+        round: uint64;
+        /** Withdrawal nonce */
         nonce: uint64;
     }>();
 
@@ -273,6 +317,10 @@ export class Master extends Contract.extend(Ownable) {
         // Increment active partner channels
         this.partner_channels_active_count.value = this.partner_channels_active_count.value + 1;
 
+        this.PartnerChannelCreated.log({
+            partnerChannel: partnerChannel,
+        });
+
         return partnerChannelAddr;
     }
 
@@ -336,6 +384,12 @@ export class Master extends Contract.extend(Ownable) {
 
         // Increment active card funds
         this.card_funds_active_count.value = this.card_funds_active_count.value + 1;
+
+        this.CardFundCreated.log({
+            cardFundOwner: cardFundOwner,
+            cardFund: cardAddr,
+            partnerChannel: partnerChannel,
+        });
 
         // Return the new account address
         return cardAddr;
@@ -542,13 +596,33 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
+     * Sets the settlement address to a new value.
+     *
+     * @param newSettlementAddress - The new settlement address to set.
+     */
+    setSettlementAddress(newSettlementAddress: Address): void {
+        this.onlyOwner();
+
+        const oldSettlementAddress = this.settlement_address.exists
+            ? this.settlement_address.value
+            : globals.zeroAddress;
+        this.settlement_address.value = newSettlementAddress;
+
+        this.SettlementAddressChanged.log({
+            oldSettlementAddress: oldSettlementAddress,
+            newSettlementAddress: newSettlementAddress,
+        });
+    }
+
+    /**
      * Settles a payment by transferring an asset to the specified recipient.
      * Only the owner of the contract can call this function.
      *
-     * @param recipient The address of the recipient.
+     * @param asset The asset to be transferred.
      * @param amount The amount of the asset to be transferred.
+     * @param nonce The nonce to prevent duplicate settlements.
      */
-    settle(recipient: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
+    settle(asset: AssetID, amount: uint64, nonce: uint64): void {
         this.onlyOwner();
 
         // Ensure the nonce is correct
@@ -556,13 +630,13 @@ export class Master extends Contract.extend(Ownable) {
 
         sendAssetTransfer({
             sender: this.app.address,
-            assetReceiver: recipient,
+            assetReceiver: this.settlement_address.value,
             xferAsset: asset,
             assetAmount: amount,
         });
 
         this.Settlement.log({
-            recipient: recipient,
+            recipient: this.settlement_address.value,
             asset: asset,
             amount: amount,
             nonce: nonce,
@@ -650,17 +724,26 @@ export class Master extends Contract.extend(Ownable) {
         assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
         const withdrawal: WithdrawalRequest = {
-            nonce: this.withdrawal_nonce(this.txn.sender).value,
-            round: globals.round + this.withdrawal_wait_time.value,
             cardFund: card,
             recipient: recipient,
             asset: asset,
             amount: amount,
+            round: globals.round + this.withdrawal_wait_time.value,
+            nonce: this.withdrawal_nonce(this.txn.sender).value,
         };
         this.withdrawal_nonce(this.txn.sender).value = this.withdrawal_nonce(this.txn.sender).value + 1;
         const withdrawal_hash = sha256(rawBytes(withdrawal));
 
         this.withdrawals(this.txn.sender, withdrawal_hash).value = withdrawal;
+
+        this.WithdrawalRequest.log({
+            cardFund: withdrawal.cardFund,
+            recipient: withdrawal.recipient,
+            asset: withdrawal.asset,
+            amount: withdrawal.amount,
+            round: withdrawal.round,
+            nonce: withdrawal.nonce,
+        });
 
         return withdrawal_hash;
     }

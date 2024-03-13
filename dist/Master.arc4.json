@@ -99,7 +99,20 @@
       "returns": {
         "type": "address",
         "desc": "The address of the newly created partner channel account."
-      }
+      },
+      "events": [
+        {
+          "name": "PartnerChannelCreated",
+          "args": [
+            {
+              "name": "partnerChannel",
+              "type": "string",
+              "desc": "Partner Channel"
+            }
+          ],
+          "desc": "Partner Channel Created event"
+        }
+      ]
     },
     {
       "name": "partnerChannelClose",
@@ -134,7 +147,30 @@
       "returns": {
         "type": "address",
         "desc": "Newly generated account used by their card"
-      }
+      },
+      "events": [
+        {
+          "name": "CardFundCreated",
+          "args": [
+            {
+              "name": "cardFundOwner",
+              "type": "address",
+              "desc": "Card Fund Owner"
+            },
+            {
+              "name": "cardFund",
+              "type": "address",
+              "desc": "Card Fund"
+            },
+            {
+              "name": "partnerChannel",
+              "type": "string",
+              "desc": "Partner Channel"
+            }
+          ],
+          "desc": "Card Created event"
+        }
+      ]
     },
     {
       "name": "cardFundClose",
@@ -363,17 +399,45 @@
       }
     },
     {
+      "name": "setSettlementAddress",
+      "desc": "Sets the settlement address to a new value.",
+      "args": [
+        {
+          "name": "newSettlementAddress",
+          "type": "address",
+          "desc": "The new settlement address to set."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "SettlementAddressChanged",
+          "args": [
+            {
+              "name": "oldSettlementAddress",
+              "type": "address",
+              "desc": "Old settlement address"
+            },
+            {
+              "name": "newSettlementAddress",
+              "type": "address",
+              "desc": "New settlement address"
+            }
+          ],
+          "desc": ""
+        }
+      ]
+    },
+    {
       "name": "settle",
       "desc": "Settles a payment by transferring an asset to the specified recipient.Only the owner of the contract can call this function.",
       "args": [
         {
-          "name": "recipient",
-          "type": "address",
-          "desc": "The address of the recipient."
-        },
-        {
           "name": "asset",
-          "type": "uint64"
+          "type": "uint64",
+          "desc": "The asset to be transferred."
         },
         {
           "name": "amount",
@@ -382,7 +446,8 @@
         },
         {
           "name": "nonce",
-          "type": "uint64"
+          "type": "uint64",
+          "desc": "The nonce to prevent duplicate settlements."
         }
       ],
       "returns": {
@@ -501,7 +566,45 @@
       "returns": {
         "type": "byte[32]",
         "desc": "Withdrawal hash used for completing or cancelling the withdrawal"
-      }
+      },
+      "events": [
+        {
+          "name": "WithdrawalRequest",
+          "args": [
+            {
+              "name": "cardFund",
+              "type": "address",
+              "desc": "Funding Source to withdraw from"
+            },
+            {
+              "name": "recipient",
+              "type": "address",
+              "desc": "Recipient address to withdraw to"
+            },
+            {
+              "name": "asset",
+              "type": "uint64",
+              "desc": "Asset to withdraw"
+            },
+            {
+              "name": "amount",
+              "type": "uint64",
+              "desc": "Amount to withdraw"
+            },
+            {
+              "name": "round",
+              "type": "uint64",
+              "desc": "Round that must be reached before withdrawal can be completed"
+            },
+            {
+              "name": "nonce",
+              "type": "uint64",
+              "desc": "Withdrawal nonce"
+            }
+          ],
+          "desc": "Withdrawal Request event"
+        }
+      ]
     },
     {
       "name": "cardFundWithdrawalCancel",
@@ -599,9 +702,36 @@
       "desc": "Event emitted when ownership of the contract is transferred."
     },
     {
-      "name": "CardCreated",
-      "args": [],
-      "desc": ""
+      "name": "PartnerChannelCreated",
+      "args": [
+        {
+          "name": "partnerChannel",
+          "type": "string",
+          "desc": "Partner Channel"
+        }
+      ],
+      "desc": "Partner Channel Created event"
+    },
+    {
+      "name": "CardFundCreated",
+      "args": [
+        {
+          "name": "cardFundOwner",
+          "type": "address",
+          "desc": "Card Fund Owner"
+        },
+        {
+          "name": "cardFund",
+          "type": "address",
+          "desc": "Card Fund"
+        },
+        {
+          "name": "partnerChannel",
+          "type": "string",
+          "desc": "Partner Channel"
+        }
+      ],
+      "desc": "Card Created event"
     },
     {
       "name": "Debit",
@@ -646,6 +776,22 @@
       "desc": "Refund event"
     },
     {
+      "name": "SettlementAddressChanged",
+      "args": [
+        {
+          "name": "oldSettlementAddress",
+          "type": "address",
+          "desc": "Old settlement address"
+        },
+        {
+          "name": "newSettlementAddress",
+          "type": "address",
+          "desc": "New settlement address"
+        }
+      ],
+      "desc": ""
+    },
+    {
       "name": "Settlement",
       "args": [
         {
@@ -670,6 +816,42 @@
         }
       ],
       "desc": "Settlement event"
+    },
+    {
+      "name": "WithdrawalRequest",
+      "args": [
+        {
+          "name": "cardFund",
+          "type": "address",
+          "desc": "Funding Source to withdraw from"
+        },
+        {
+          "name": "recipient",
+          "type": "address",
+          "desc": "Recipient address to withdraw to"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset to withdraw"
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount to withdraw"
+        },
+        {
+          "name": "round",
+          "type": "uint64",
+          "desc": "Round that must be reached before withdrawal can be completed"
+        },
+        {
+          "name": "nonce",
+          "type": "uint64",
+          "desc": "Withdrawal nonce"
+        }
+      ],
+      "desc": "Withdrawal Request event"
     },
     {
       "name": "Withdrawal",
