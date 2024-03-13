@@ -264,7 +264,8 @@
         },
         {
           "name": "partnerChannel",
-          "type": "string"
+          "type": "string",
+          "desc": "The partner channel to allow the asset for."
         },
         {
           "name": "asset",

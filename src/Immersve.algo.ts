@@ -494,10 +494,14 @@ export class Master extends Contract.extend(Ownable) {
      * Allows the specified asset to be transferred for users of this partner channel.
      *
      * @param mbr - The PayTxn object representing the transaction.
+     * @param partnerChannel - The partner channel to allow the asset for.
      * @param asset - The ID of the asset to be allowed.
      */
     partnerChannelAcceptAsset(mbr: PayTxn, partnerChannel: string, asset: AssetID): void {
         this.onlyOwner();
+
+        // Only proceed if the master allowlist accepts it
+        assert(this.app.address.isOptedInToAsset(asset));
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
@@ -657,9 +661,9 @@ export class Master extends Contract.extend(Ownable) {
     cardFundEnableAsset(mbr: PayTxn, partnerChannel: string, card: Address, asset: AssetID): void {
         assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
-        // FIX: frame_dig -1 error when uncommented
-        // This same logic should be on masterAcceptAsset and cardDebit
-        // assert(this.partnerChannels(partnerChannel).value.isOptedInToAsset(asset));
+        // FIX: Resource usage limit exceeded
+        // Only proceed if the partner channel allowlist accepts it
+        // assert(this.partner_channels(partnerChannel).value.isOptedInToAsset(asset));
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
