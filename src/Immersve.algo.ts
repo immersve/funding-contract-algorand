@@ -661,9 +661,8 @@ export class Master extends Contract.extend(Ownable) {
     cardFundEnableAsset(mbr: PayTxn, partnerChannel: string, card: Address, asset: AssetID): void {
         assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card));
 
-        // FIX: Resource usage limit exceeded
         // Only proceed if the partner channel allowlist accepts it
-        // assert(this.partner_channels(partnerChannel).value.isOptedInToAsset(asset));
+        assert(this.partner_channels(partnerChannel).value.isOptedInToAsset(asset));
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
