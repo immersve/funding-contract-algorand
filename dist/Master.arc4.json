@@ -695,6 +695,38 @@
       "desc": "Card Created event"
     },
     {
+      "name": "CardFundAssetEnabled",
+      "args": [
+        {
+          "name": "cardFund",
+          "type": "address",
+          "desc": "Card Fund"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset"
+        }
+      ],
+      "desc": "Card Fund Asset Enabled event"
+    },
+    {
+      "name": "CardFundAssetDisabled",
+      "args": [
+        {
+          "name": "cardFund",
+          "type": "address",
+          "desc": "Card Fund"
+        },
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset"
+        }
+      ],
+      "desc": "Card Fund Asset Disabled event"
+    },
+    {
       "name": "Debit",
       "args": [
         {

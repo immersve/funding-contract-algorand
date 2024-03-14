@@ -111,6 +111,26 @@ export class Master extends Contract.extend(Ownable) {
     }>();
 
     /**
+     * Card Fund Asset Enabled event
+     */
+    CardFundAssetEnabled = new EventLogger<{
+        /** Card Fund */
+        cardFund: Address;
+        /** Asset */
+        asset: AssetID;
+    }>();
+
+    /**
+     * Card Fund Asset Disabled event
+     */
+    CardFundAssetDisabled = new EventLogger<{
+        /** Card Fund */
+        cardFund: Address;
+        /** Asset */
+        asset: AssetID;
+    }>();
+
+    /**
      * Debit event
      */
     Debit = new EventLogger<{
@@ -217,6 +237,11 @@ export class Master extends Contract.extend(Ownable) {
             xferAsset: asset,
             assetAmount: 0,
         });
+
+        this.CardFundAssetEnabled.log({
+            cardFund: cardFund,
+            asset: asset,
+        });
     }
 
     private cardFundAssetCloseOut(cardFund: Address, asset: AssetID): void {
@@ -232,6 +257,11 @@ export class Master extends Contract.extend(Ownable) {
             sender: cardFund,
             receiver: this.txn.sender,
             amount: globals.assetOptInMinBalance,
+        });
+
+        this.CardFundAssetDisabled.log({
+            cardFund: cardFund,
+            asset: asset,
         });
     }
 
