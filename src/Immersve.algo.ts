@@ -203,18 +203,13 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
-     * Card fund opt-in to an asset
+     * Opt-in a Card Fund into an asset. Minimum balance requirement must be met prior to calling this function.
      * @param cardFund Card Fund address
      * @param asset Asset to opt-in to
      */
     private cardFundAssetOptIn(cardFund: Address, asset: AssetID): void {
         // Only proceed if the master allowlist accepts it
         assert(this.app.address.isOptedInToAsset(asset));
-
-        sendPayment({
-            receiver: cardFund,
-            amount: globals.assetOptInMinBalance,
-        });
 
         sendAssetTransfer({
             sender: cardFund,
@@ -326,8 +321,6 @@ export class Master extends Contract.extend(Ownable) {
      * @returns The address of the newly created partner channel account.
      */
     partnerChannelCreate(mbr: PayTxn, partnerChannel: string): Address {
-        this.onlyOwner();
-
         assert(!this.partner_channels(partnerChannel).exists);
 
         const boxCost = 2500 + 400 * (3 + len(partnerChannel) + 32);
@@ -651,6 +644,11 @@ export class Master extends Contract.extend(Ownable) {
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
+            amount: globals.assetOptInMinBalance,
+        });
+
+        sendPayment({
+            receiver: cardFund,
             amount: globals.assetOptInMinBalance,
         });
 

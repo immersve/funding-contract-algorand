@@ -193,7 +193,7 @@ isCardFundOwner:
 
 // cardFundAssetOptIn(cardFund: Address, asset: AssetID): void
 //
-// Card fund opt-in to an asset
+// Opt-in a Card Fund into an asset. Minimum balance requirement must be met prior to calling this function.
 // @param cardFund Card Fund address
 // @param asset Asset to opt-in to
 cardFundAssetOptIn:
@@ -209,32 +209,6 @@ cardFundAssetOptIn:
 	assert
 
 	// src/Immersve.algo.ts:214
-	// sendPayment({
-	//             receiver: cardFund,
-	//             amount: globals.assetOptInMinBalance,
-	//         })
-	itxn_begin
-	int pay
-	itxn_field TypeEnum
-
-	// src/Immersve.algo.ts:215
-	// receiver: cardFund
-	frame_dig -1 // cardFund: Address
-	itxn_field Receiver
-
-	// src/Immersve.algo.ts:216
-	// amount: globals.assetOptInMinBalance
-	global AssetOptInMinBalance
-	itxn_field Amount
-
-	// Fee field not set, defaulting to 0
-	int 0
-	itxn_field Fee
-
-	// Submit inner transaction
-	itxn_submit
-
-	// src/Immersve.algo.ts:219
 	// sendAssetTransfer({
 	//             sender: cardFund,
 	//             assetReceiver: cardFund,
@@ -245,22 +219,22 @@ cardFundAssetOptIn:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:220
+	// src/Immersve.algo.ts:215
 	// sender: cardFund
 	frame_dig -1 // cardFund: Address
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:221
+	// src/Immersve.algo.ts:216
 	// assetReceiver: cardFund
 	frame_dig -1 // cardFund: Address
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:222
+	// src/Immersve.algo.ts:217
 	// xferAsset: asset
 	frame_dig -2 // asset: AssetID
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:223
+	// src/Immersve.algo.ts:218
 	// assetAmount: 0
 	int 0
 	itxn_field AssetAmount
@@ -277,7 +251,7 @@ cardFundAssetOptIn:
 cardFundAssetCloseOut:
 	proto 2 0
 
-	// src/Immersve.algo.ts:228
+	// src/Immersve.algo.ts:223
 	// sendAssetTransfer({
 	//             sender: cardFund,
 	//             assetReceiver: cardFund,
@@ -289,27 +263,27 @@ cardFundAssetCloseOut:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:229
+	// src/Immersve.algo.ts:224
 	// sender: cardFund
 	frame_dig -1 // cardFund: Address
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:230
+	// src/Immersve.algo.ts:225
 	// assetReceiver: cardFund
 	frame_dig -1 // cardFund: Address
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:231
+	// src/Immersve.algo.ts:226
 	// assetCloseTo: cardFund
 	frame_dig -1 // cardFund: Address
 	itxn_field AssetCloseTo
 
-	// src/Immersve.algo.ts:232
+	// src/Immersve.algo.ts:227
 	// xferAsset: asset
 	frame_dig -2 // asset: AssetID
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:233
+	// src/Immersve.algo.ts:228
 	// assetAmount: 0
 	int 0
 	itxn_field AssetAmount
@@ -321,7 +295,7 @@ cardFundAssetCloseOut:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:236
+	// src/Immersve.algo.ts:231
 	// sendPayment({
 	//             sender: cardFund,
 	//             receiver: this.txn.sender,
@@ -331,17 +305,17 @@ cardFundAssetCloseOut:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:237
+	// src/Immersve.algo.ts:232
 	// sender: cardFund
 	frame_dig -1 // cardFund: Address
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:238
+	// src/Immersve.algo.ts:233
 	// receiver: this.txn.sender
 	txn Sender
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:239
+	// src/Immersve.algo.ts:234
 	// amount: globals.assetOptInMinBalance
 	global AssetOptInMinBalance
 	itxn_field Amount
@@ -358,7 +332,7 @@ cardFundAssetCloseOut:
 withdrawFunds:
 	proto 1 0
 
-	// src/Immersve.algo.ts:244
+	// src/Immersve.algo.ts:239
 	// sendAssetTransfer({
 	//             sender: withdrawal.cardFund,
 	//             assetReceiver: withdrawal.recipient,
@@ -369,26 +343,26 @@ withdrawFunds:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:245
+	// src/Immersve.algo.ts:240
 	// sender: withdrawal.cardFund
 	frame_dig -1 // withdrawal: WithdrawalRequest
 	extract 0 32
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:246
+	// src/Immersve.algo.ts:241
 	// assetReceiver: withdrawal.recipient
 	frame_dig -1 // withdrawal: WithdrawalRequest
 	extract 32 32
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:247
+	// src/Immersve.algo.ts:242
 	// xferAsset: withdrawal.asset
 	frame_dig -1 // withdrawal: WithdrawalRequest
 	extract 64 8
 	btoi
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:248
+	// src/Immersve.algo.ts:243
 	// assetAmount: withdrawal.amount
 	frame_dig -1 // withdrawal: WithdrawalRequest
 	extract 72 8
@@ -402,7 +376,7 @@ withdrawFunds:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:252
+	// src/Immersve.algo.ts:247
 	// this.Withdrawal.log({
 	//             cardFund: withdrawal.cardFund,
 	//             recipient: withdrawal.recipient,
@@ -461,12 +435,12 @@ withdrawFunds:
 deploy:
 	proto 1 1
 
-	// src/Immersve.algo.ts:267
+	// src/Immersve.algo.ts:262
 	// this._transferOwnership(owner)
 	frame_dig -1 // owner: Address
 	callsub _transferOwnership
 
-	// src/Immersve.algo.ts:269
+	// src/Immersve.algo.ts:264
 	// return this.app.address;
 	global CurrentApplicationAddress
 	retsub
@@ -484,7 +458,7 @@ deploy:
 update:
 	proto 0 0
 
-	// src/Immersve.algo.ts:277
+	// src/Immersve.algo.ts:272
 	// this.onlyOwner()
 	callsub onlyOwner
 	retsub
@@ -502,25 +476,25 @@ update:
 destroy:
 	proto 0 0
 
-	// src/Immersve.algo.ts:285
+	// src/Immersve.algo.ts:280
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:288
+	// src/Immersve.algo.ts:283
 	// assert(!this.card_funds_active_count.value)
 	byte 0x63666163 // "cfac"
 	app_global_get
 	!
 	assert
 
-	// src/Immersve.algo.ts:290
+	// src/Immersve.algo.ts:285
 	// assert(!this.partner_channels_active_count.value)
 	byte 0x70636163 // "pcac"
 	app_global_get
 	!
 	assert
 
-	// src/Immersve.algo.ts:292
+	// src/Immersve.algo.ts:287
 	// sendPayment({
 	//             receiver: this.app.address,
 	//             amount: 0,
@@ -530,17 +504,17 @@ destroy:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:293
+	// src/Immersve.algo.ts:288
 	// receiver: this.app.address
 	global CurrentApplicationAddress
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:294
+	// src/Immersve.algo.ts:289
 	// amount: 0
 	int 0
 	itxn_field Amount
 
-	// src/Immersve.algo.ts:295
+	// src/Immersve.algo.ts:290
 	// closeRemainderTo: this.owner()
 	callsub owner
 	itxn_field CloseRemainderTo
@@ -571,11 +545,11 @@ destroy:
 setWithdrawalTimeout:
 	proto 1 0
 
-	// src/Immersve.algo.ts:305
+	// src/Immersve.algo.ts:300
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:307
+	// src/Immersve.algo.ts:302
 	// this.withdrawal_wait_time.value = seconds
 	byte 0x777774 // "wwt"
 	frame_dig -1 // seconds: uint64
@@ -604,11 +578,11 @@ setWithdrawalTimeout:
 setEarlyWithdrawalPubkey:
 	proto 1 0
 
-	// src/Immersve.algo.ts:315
+	// src/Immersve.algo.ts:310
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:317
+	// src/Immersve.algo.ts:312
 	// this.early_withdrawal_pubkey.value = pubkey
 	byte 0x6577706b // "ewpk"
 	frame_dig -1 // pubkey: bytes32
@@ -656,11 +630,7 @@ partnerChannelCreate:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:329
-	// this.onlyOwner()
-	callsub onlyOwner
-
-	// src/Immersve.algo.ts:331
+	// src/Immersve.algo.ts:324
 	// assert(!this.partner_channels(partnerChannel).exists)
 	byte 0x7063 // "pc"
 	frame_dig -2 // partnerChannel: string
@@ -677,7 +647,7 @@ partnerChannelCreate:
 	!
 	assert
 
-	// src/Immersve.algo.ts:333
+	// src/Immersve.algo.ts:326
 	// boxCost = 2500 + 400 * (3 + len(partnerChannel) + 32)
 	int 2500
 	int 400
@@ -691,7 +661,7 @@ partnerChannelCreate:
 	+
 	frame_bury 0 // boxCost: uint64
 
-	// src/Immersve.algo.ts:335
+	// src/Immersve.algo.ts:328
 	// verifyPayTxn(mbr, {
 	//             receiver: this.app.address,
 	//             amount: globals.minBalance + globals.assetOptInMinBalance + boxCost,
@@ -714,7 +684,7 @@ partnerChannelCreate:
 	==
 	assert
 
-	// src/Immersve.algo.ts:341
+	// src/Immersve.algo.ts:334
 	// partnerChannelAddr = sendMethodCall<typeof ControlledAddress.prototype.new>({
 	//             onCompletion: OnCompletion.DeleteApplication,
 	//             approvalProgram: ControlledAddress.approvalProgram(),
@@ -726,17 +696,17 @@ partnerChannelCreate:
 	method "new()address"
 	itxn_field ApplicationArgs
 
-	// src/Immersve.algo.ts:342
+	// src/Immersve.algo.ts:335
 	// onCompletion: OnCompletion.DeleteApplication
 	int 5 // DeleteApplication
 	itxn_field OnCompletion
 
-	// src/Immersve.algo.ts:343
+	// src/Immersve.algo.ts:336
 	// approvalProgram: ControlledAddress.approvalProgram()
 	byte b64 CiACAQAxGBSBBgsxGQiNDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJwCABBUffHWIAARQsCJDigABsSKyEDIKsgcjsggyDrIgI7IBszIKiYAEVh0v6jYaAI4B/80A
 	itxn_field ApprovalProgram
 
-	// src/Immersve.algo.ts:344
+	// src/Immersve.algo.ts:337
 	// clearStateProgram: ControlledAddress.clearProgram()
 	byte b64 Cg==
 	itxn_field ClearStateProgram
@@ -754,7 +724,7 @@ partnerChannelCreate:
 	extract 4 0
 	frame_bury 1 // partnerChannelAddr: address
 
-	// src/Immersve.algo.ts:348
+	// src/Immersve.algo.ts:341
 	// sendPayment({
 	//             receiver: partnerChannelAddr,
 	//             amount: globals.minBalance,
@@ -763,12 +733,12 @@ partnerChannelCreate:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:349
+	// src/Immersve.algo.ts:342
 	// receiver: partnerChannelAddr
 	frame_dig 1 // partnerChannelAddr: address
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:350
+	// src/Immersve.algo.ts:343
 	// amount: globals.minBalance
 	global MinBalance
 	itxn_field Amount
@@ -780,7 +750,7 @@ partnerChannelCreate:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:353
+	// src/Immersve.algo.ts:346
 	// this.partner_channels(partnerChannel).value = partnerChannelAddr
 	byte 0x7063 // "pc"
 	frame_dig -2 // partnerChannel: string
@@ -794,7 +764,7 @@ partnerChannelCreate:
 	frame_dig 1 // partnerChannelAddr: address
 	box_put
 
-	// src/Immersve.algo.ts:356
+	// src/Immersve.algo.ts:349
 	// this.partner_channels_active_count.value = this.partner_channels_active_count.value + 1
 	byte 0x70636163 // "pcac"
 	dup
@@ -803,7 +773,7 @@ partnerChannelCreate:
 	+
 	app_global_put
 
-	// src/Immersve.algo.ts:358
+	// src/Immersve.algo.ts:351
 	// this.PartnerChannelCreated.log({
 	//             partnerChannel: partnerChannel,
 	//         })
@@ -824,7 +794,7 @@ partnerChannelCreate:
 	concat
 	log
 
-	// src/Immersve.algo.ts:362
+	// src/Immersve.algo.ts:355
 	// return partnerChannelAddr;
 	frame_dig 1 // partnerChannelAddr: address
 
@@ -853,11 +823,11 @@ partnerChannelClose:
 	// Push empty bytes after the frame pointer to reserve space for local variables
 	byte 0x
 
-	// src/Immersve.algo.ts:366
+	// src/Immersve.algo.ts:359
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:368
+	// src/Immersve.algo.ts:361
 	// sendPayment({
 	//             sender: this.partner_channels(partnerChannel).value,
 	//             receiver: this.partner_channels(partnerChannel).value,
@@ -868,7 +838,7 @@ partnerChannelClose:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:369
+	// src/Immersve.algo.ts:362
 	// sender: this.partner_channels(partnerChannel).value
 	byte 0x7063 // "pc"
 	frame_dig -1 // partnerChannel: string
@@ -883,7 +853,7 @@ partnerChannelClose:
 	assert
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:370
+	// src/Immersve.algo.ts:363
 	// receiver: this.partner_channels(partnerChannel).value
 	byte 0x7063 // "pc"
 	frame_dig -1 // partnerChannel: string
@@ -898,12 +868,12 @@ partnerChannelClose:
 	assert
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:371
+	// src/Immersve.algo.ts:364
 	// amount: 0
 	int 0
 	itxn_field Amount
 
-	// src/Immersve.algo.ts:372
+	// src/Immersve.algo.ts:365
 	// closeRemainderTo: this.txn.sender
 	txn Sender
 	itxn_field CloseRemainderTo
@@ -915,7 +885,7 @@ partnerChannelClose:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:375
+	// src/Immersve.algo.ts:368
 	// boxCost = 2500 + 400 * (3 + len(partnerChannel) + 32)
 	int 2500
 	int 400
@@ -929,7 +899,7 @@ partnerChannelClose:
 	+
 	frame_bury 0 // boxCost: uint64
 
-	// src/Immersve.algo.ts:377
+	// src/Immersve.algo.ts:370
 	// sendPayment({
 	//             receiver: this.txn.sender,
 	//             amount: boxCost,
@@ -938,12 +908,12 @@ partnerChannelClose:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:378
+	// src/Immersve.algo.ts:371
 	// receiver: this.txn.sender
 	txn Sender
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:379
+	// src/Immersve.algo.ts:372
 	// amount: boxCost
 	frame_dig 0 // boxCost: uint64
 	itxn_field Amount
@@ -955,7 +925,7 @@ partnerChannelClose:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:383
+	// src/Immersve.algo.ts:376
 	// this.partner_channels(partnerChannel).delete()
 	byte 0x7063 // "pc"
 	frame_dig -1 // partnerChannel: string
@@ -968,7 +938,7 @@ partnerChannelClose:
 	concat
 	box_del
 
-	// src/Immersve.algo.ts:386
+	// src/Immersve.algo.ts:379
 	// this.partner_channels_active_count.value = this.partner_channels_active_count.value - 1
 	byte 0x70636163 // "pcac"
 	dup
@@ -1022,7 +992,7 @@ cardFundCreate:
 	byte 0x
 	dupn 3
 
-	// src/Immersve.algo.ts:397
+	// src/Immersve.algo.ts:390
 	// assert(this.partner_channels(partnerChannel).exists)
 	byte 0x7063 // "pc"
 	frame_dig -2 // partnerChannel: string
@@ -1038,7 +1008,7 @@ cardFundCreate:
 	pop
 	assert
 
-	// src/Immersve.algo.ts:399
+	// src/Immersve.algo.ts:392
 	// cardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: this.txn.sender }
 	byte 0x // initial head
 	byte 0x // initial tail
@@ -1057,7 +1027,7 @@ cardFundCreate:
 	concat // concat head and tail
 	frame_bury 0 // cardFunds: CardFundDetails
 
-	// src/Immersve.algo.ts:400
+	// src/Immersve.algo.ts:393
 	// boxCost = 2500 + 400 * (3 + len(cardFunds) + 32)
 	int 2500
 	int 400
@@ -1071,7 +1041,7 @@ cardFundCreate:
 	+
 	frame_bury 1 // boxCost: uint64
 
-	// src/Immersve.algo.ts:401
+	// src/Immersve.algo.ts:394
 	// assetMbr = asset ? globals.assetOptInMinBalance : 0
 	frame_dig -3 // asset: AssetID
 	bz *ternary3_false
@@ -1084,7 +1054,7 @@ cardFundCreate:
 *ternary3_end:
 	frame_bury 2 // assetMbr: uint64
 
-	// src/Immersve.algo.ts:403
+	// src/Immersve.algo.ts:396
 	// verifyPayTxn(mbr, {
 	//             receiver: this.app.address,
 	//             amount: globals.minBalance + assetMbr + boxCost,
@@ -1107,7 +1077,7 @@ cardFundCreate:
 	==
 	assert
 
-	// src/Immersve.algo.ts:409
+	// src/Immersve.algo.ts:402
 	// cardAddr = sendMethodCall<typeof ControlledAddress.prototype.new>({
 	//             onCompletion: OnCompletion.DeleteApplication,
 	//             approvalProgram: ControlledAddress.approvalProgram(),
@@ -1119,17 +1089,17 @@ cardFundCreate:
 	method "new()address"
 	itxn_field ApplicationArgs
 
-	// src/Immersve.algo.ts:410
+	// src/Immersve.algo.ts:403
 	// onCompletion: OnCompletion.DeleteApplication
 	int 5 // DeleteApplication
 	itxn_field OnCompletion
 
-	// src/Immersve.algo.ts:411
+	// src/Immersve.algo.ts:404
 	// approvalProgram: ControlledAddress.approvalProgram()
 	byte b64 CiACAQAxGBSBBgsxGQiNDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJwCABBUffHWIAARQsCJDigABsSKyEDIKsgcjsggyDrIgI7IBszIKiYAEVh0v6jYaAI4B/80A
 	itxn_field ApprovalProgram
 
-	// src/Immersve.algo.ts:412
+	// src/Immersve.algo.ts:405
 	// clearStateProgram: ControlledAddress.clearProgram()
 	byte b64 Cg==
 	itxn_field ClearStateProgram
@@ -1147,7 +1117,7 @@ cardFundCreate:
 	extract 4 0
 	frame_bury 3 // cardAddr: address
 
-	// src/Immersve.algo.ts:416
+	// src/Immersve.algo.ts:409
 	// sendPayment({
 	//             receiver: cardAddr,
 	//             amount: globals.minBalance + assetMbr,
@@ -1156,12 +1126,12 @@ cardFundCreate:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:417
+	// src/Immersve.algo.ts:410
 	// receiver: cardAddr
 	frame_dig 3 // cardAddr: address
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:418
+	// src/Immersve.algo.ts:411
 	// amount: globals.minBalance + assetMbr
 	global MinBalance
 	frame_dig 2 // assetMbr: uint64
@@ -1176,20 +1146,20 @@ cardFundCreate:
 	itxn_submit
 
 	// *if0_condition
-	// src/Immersve.algo.ts:422
+	// src/Immersve.algo.ts:415
 	// asset
 	frame_dig -3 // asset: AssetID
 	bz *if0_end
 
 	// *if0_consequent
-	// src/Immersve.algo.ts:423
+	// src/Immersve.algo.ts:416
 	// this.cardFundAssetOptIn(cardAddr, asset)
 	frame_dig -3 // asset: AssetID
 	frame_dig 3 // cardAddr: address
 	callsub cardFundAssetOptIn
 
 *if0_end:
-	// src/Immersve.algo.ts:427
+	// src/Immersve.algo.ts:420
 	// this.card_funds(cardFunds).value = cardAddr
 	byte 0x6366 // "cf"
 	frame_dig 0 // cardFunds: CardFundDetails
@@ -1197,7 +1167,7 @@ cardFundCreate:
 	frame_dig 3 // cardAddr: address
 	box_put
 
-	// src/Immersve.algo.ts:430
+	// src/Immersve.algo.ts:423
 	// this.card_funds_active_count.value = this.card_funds_active_count.value + 1
 	byte 0x63666163 // "cfac"
 	dup
@@ -1206,7 +1176,7 @@ cardFundCreate:
 	+
 	app_global_put
 
-	// src/Immersve.algo.ts:432
+	// src/Immersve.algo.ts:425
 	// this.CardFundCreated.log({
 	//             cardFundOwner: this.txn.sender,
 	//             cardFund: cardAddr,
@@ -1233,7 +1203,7 @@ cardFundCreate:
 	concat
 	log
 
-	// src/Immersve.algo.ts:439
+	// src/Immersve.algo.ts:432
 	// return cardAddr;
 	frame_dig 3 // cardAddr: address
 
@@ -1284,7 +1254,7 @@ cardFundClose:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:449
+	// src/Immersve.algo.ts:442
 	// assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card))
 	callsub isOwner
 	dup
@@ -1297,7 +1267,7 @@ cardFundClose:
 *skip_or0:
 	assert
 
-	// src/Immersve.algo.ts:451
+	// src/Immersve.algo.ts:444
 	// sendPayment({
 	//             sender: card,
 	//             receiver: card,
@@ -1308,22 +1278,22 @@ cardFundClose:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:452
+	// src/Immersve.algo.ts:445
 	// sender: card
 	frame_dig -3 // card: Address
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:453
+	// src/Immersve.algo.ts:446
 	// receiver: card
 	frame_dig -3 // card: Address
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:454
+	// src/Immersve.algo.ts:447
 	// amount: 0
 	int 0
 	itxn_field Amount
 
-	// src/Immersve.algo.ts:455
+	// src/Immersve.algo.ts:448
 	// closeRemainderTo: this.txn.sender
 	txn Sender
 	itxn_field CloseRemainderTo
@@ -1335,7 +1305,7 @@ cardFundClose:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:458
+	// src/Immersve.algo.ts:451
 	// cardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: cardFundOwner }
 	byte 0x // initial head
 	byte 0x // initial tail
@@ -1354,7 +1324,7 @@ cardFundClose:
 	concat // concat head and tail
 	frame_bury 0 // cardFunds: CardFundDetails
 
-	// src/Immersve.algo.ts:459
+	// src/Immersve.algo.ts:452
 	// boxCost = 2500 + 400 * (1 + len(cardFunds) + 32)
 	int 2500
 	int 400
@@ -1368,7 +1338,7 @@ cardFundClose:
 	+
 	frame_bury 1 // boxCost: uint64
 
-	// src/Immersve.algo.ts:461
+	// src/Immersve.algo.ts:454
 	// sendPayment({
 	//             receiver: this.txn.sender,
 	//             amount: boxCost,
@@ -1377,12 +1347,12 @@ cardFundClose:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:462
+	// src/Immersve.algo.ts:455
 	// receiver: this.txn.sender
 	txn Sender
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:463
+	// src/Immersve.algo.ts:456
 	// amount: boxCost
 	frame_dig 1 // boxCost: uint64
 	itxn_field Amount
@@ -1394,14 +1364,14 @@ cardFundClose:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:467
+	// src/Immersve.algo.ts:460
 	// this.card_funds(cardFunds).delete()
 	byte 0x6366 // "cf"
 	frame_dig 0 // cardFunds: CardFundDetails
 	concat
 	box_del
 
-	// src/Immersve.algo.ts:470
+	// src/Immersve.algo.ts:463
 	// this.card_funds_active_count.value = this.card_funds_active_count.value - 1
 	byte 0x63666163 // "cfac"
 	dup
@@ -1453,11 +1423,11 @@ cardFundRecover:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:482
+	// src/Immersve.algo.ts:475
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:484
+	// src/Immersve.algo.ts:477
 	// oldCardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: oldCardHolder }
 	byte 0x // initial head
 	byte 0x // initial tail
@@ -1476,7 +1446,7 @@ cardFundRecover:
 	concat // concat head and tail
 	frame_bury 0 // oldCardFunds: CardFundDetails
 
-	// src/Immersve.algo.ts:485
+	// src/Immersve.algo.ts:478
 	// newCardFunds: CardFundDetails = { partnerChannel: partnerChannel, cardFundOwner: newCardHolder }
 	byte 0x // initial head
 	byte 0x // initial tail
@@ -1495,7 +1465,7 @@ cardFundRecover:
 	concat // concat head and tail
 	frame_bury 1 // newCardFunds: CardFundDetails
 
-	// src/Immersve.algo.ts:486
+	// src/Immersve.algo.ts:479
 	// this.card_funds(newCardFunds).value = this.card_funds(oldCardFunds).value
 	byte 0x6366 // "cf"
 	frame_dig 1 // newCardFunds: CardFundDetails
@@ -1507,7 +1477,7 @@ cardFundRecover:
 	assert
 	box_put
 
-	// src/Immersve.algo.ts:488
+	// src/Immersve.algo.ts:481
 	// this.card_funds(oldCardFunds).delete()
 	byte 0x6366 // "cf"
 	frame_dig 0 // oldCardFunds: CardFundDetails
@@ -1546,11 +1516,11 @@ cardFundRecover:
 assetAllowlistAdd:
 	proto 2 0
 
-	// src/Immersve.algo.ts:499
+	// src/Immersve.algo.ts:492
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:501
+	// src/Immersve.algo.ts:494
 	// verifyPayTxn(mbr, {
 	//             receiver: this.app.address,
 	//             amount: globals.assetOptInMinBalance,
@@ -1569,7 +1539,7 @@ assetAllowlistAdd:
 	==
 	assert
 
-	// src/Immersve.algo.ts:506
+	// src/Immersve.algo.ts:499
 	// sendAssetTransfer({
 	//             sender: this.app.address,
 	//             assetReceiver: this.app.address,
@@ -1580,22 +1550,22 @@ assetAllowlistAdd:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:507
+	// src/Immersve.algo.ts:500
 	// sender: this.app.address
 	global CurrentApplicationAddress
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:508
+	// src/Immersve.algo.ts:501
 	// assetReceiver: this.app.address
 	global CurrentApplicationAddress
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:509
+	// src/Immersve.algo.ts:502
 	// xferAsset: asset
 	frame_dig -2 // asset: AssetID
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:510
+	// src/Immersve.algo.ts:503
 	// assetAmount: 0
 	int 0
 	itxn_field AssetAmount
@@ -1627,11 +1597,11 @@ assetAllowlistAdd:
 assetAllowlistRemove:
 	proto 1 0
 
-	// src/Immersve.algo.ts:520
+	// src/Immersve.algo.ts:513
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:523
+	// src/Immersve.algo.ts:516
 	// sendAssetTransfer({
 	//             sender: this.app.address,
 	//             assetReceiver: this.app.address,
@@ -1643,27 +1613,27 @@ assetAllowlistRemove:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:524
+	// src/Immersve.algo.ts:517
 	// sender: this.app.address
 	global CurrentApplicationAddress
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:525
+	// src/Immersve.algo.ts:518
 	// assetReceiver: this.app.address
 	global CurrentApplicationAddress
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:526
+	// src/Immersve.algo.ts:519
 	// assetCloseTo: this.app.address
 	global CurrentApplicationAddress
 	itxn_field AssetCloseTo
 
-	// src/Immersve.algo.ts:527
+	// src/Immersve.algo.ts:520
 	// xferAsset: asset
 	frame_dig -1 // asset: AssetID
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:528
+	// src/Immersve.algo.ts:521
 	// assetAmount: 0
 	int 0
 	itxn_field AssetAmount
@@ -1675,7 +1645,7 @@ assetAllowlistRemove:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:531
+	// src/Immersve.algo.ts:524
 	// sendPayment({
 	//             receiver: this.txn.sender,
 	//             amount: globals.assetOptInMinBalance,
@@ -1684,12 +1654,12 @@ assetAllowlistRemove:
 	int pay
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:532
+	// src/Immersve.algo.ts:525
 	// receiver: this.txn.sender
 	txn Sender
 	itxn_field Receiver
 
-	// src/Immersve.algo.ts:533
+	// src/Immersve.algo.ts:526
 	// amount: globals.assetOptInMinBalance
 	global AssetOptInMinBalance
 	itxn_field Amount
@@ -1735,11 +1705,11 @@ assetAllowlistRemove:
 cardFundDebit:
 	proto 3 0
 
-	// src/Immersve.algo.ts:545
+	// src/Immersve.algo.ts:538
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:547
+	// src/Immersve.algo.ts:540
 	// sendAssetTransfer({
 	//             sender: card,
 	//             assetReceiver: this.app.address,
@@ -1750,22 +1720,22 @@ cardFundDebit:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:548
+	// src/Immersve.algo.ts:541
 	// sender: card
 	frame_dig -1 // card: Address
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:549
+	// src/Immersve.algo.ts:542
 	// assetReceiver: this.app.address
 	global CurrentApplicationAddress
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:550
+	// src/Immersve.algo.ts:543
 	// xferAsset: asset
 	frame_dig -2 // asset: AssetID
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:551
+	// src/Immersve.algo.ts:544
 	// assetAmount: amount
 	frame_dig -3 // amount: uint64
 	itxn_field AssetAmount
@@ -1777,7 +1747,7 @@ cardFundDebit:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:554
+	// src/Immersve.algo.ts:547
 	// this.Debit.log({
 	//             card: card,
 	//             asset: asset,
@@ -1832,11 +1802,11 @@ cardFundDebit:
 cardFundRefund:
 	proto 4 0
 
-	// src/Immersve.algo.ts:569
+	// src/Immersve.algo.ts:562
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:571
+	// src/Immersve.algo.ts:564
 	// sendAssetTransfer({
 	//             sender: this.partner_channels(partnerChannel).value,
 	//             assetReceiver: card,
@@ -1847,7 +1817,7 @@ cardFundRefund:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:572
+	// src/Immersve.algo.ts:565
 	// sender: this.partner_channels(partnerChannel).value
 	byte 0x7063 // "pc"
 	frame_dig -1 // partnerChannel: string
@@ -1862,17 +1832,17 @@ cardFundRefund:
 	assert
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:573
+	// src/Immersve.algo.ts:566
 	// assetReceiver: card
 	frame_dig -2 // card: Address
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:574
+	// src/Immersve.algo.ts:567
 	// xferAsset: asset
 	frame_dig -3 // asset: AssetID
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:575
+	// src/Immersve.algo.ts:568
 	// assetAmount: amount
 	frame_dig -4 // amount: uint64
 	itxn_field AssetAmount
@@ -1884,7 +1854,7 @@ cardFundRefund:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:578
+	// src/Immersve.algo.ts:571
 	// this.Refund.log({
 	//             card: card,
 	//             asset: asset,
@@ -1919,7 +1889,7 @@ cardFundRefund:
 getNextSettlementNonce:
 	proto 0 1
 
-	// src/Immersve.algo.ts:587
+	// src/Immersve.algo.ts:580
 	// return this.settlement_nonce.value;
 	byte 0x736e // "sn"
 	app_global_get
@@ -1951,11 +1921,11 @@ setSettlementAddress:
 	// Push empty bytes after the frame pointer to reserve space for local variables
 	byte 0x
 
-	// src/Immersve.algo.ts:596
+	// src/Immersve.algo.ts:589
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:598
+	// src/Immersve.algo.ts:591
 	// oldSettlementAddress = this.settlement_address.exists
 	//             ? this.settlement_address.value
 	//             : globals.zeroAddress
@@ -1975,13 +1945,13 @@ setSettlementAddress:
 *ternary5_end:
 	frame_bury 0 // oldSettlementAddress: address
 
-	// src/Immersve.algo.ts:601
+	// src/Immersve.algo.ts:594
 	// this.settlement_address.value = newSettlementAddress
 	byte 0x7361 // "sa"
 	frame_dig -1 // newSettlementAddress: Address
 	app_global_put
 
-	// src/Immersve.algo.ts:603
+	// src/Immersve.algo.ts:596
 	// this.SettlementAddressChanged.log({
 	//             oldSettlementAddress: oldSettlementAddress,
 	//             newSettlementAddress: newSettlementAddress,
@@ -2024,11 +1994,11 @@ setSettlementAddress:
 settle:
 	proto 3 0
 
-	// src/Immersve.algo.ts:618
+	// src/Immersve.algo.ts:611
 	// this.onlyOwner()
 	callsub onlyOwner
 
-	// src/Immersve.algo.ts:621
+	// src/Immersve.algo.ts:614
 	// assert(this.settlement_nonce.value === nonce)
 	byte 0x736e // "sn"
 	app_global_get
@@ -2036,7 +2006,7 @@ settle:
 	==
 	assert
 
-	// src/Immersve.algo.ts:623
+	// src/Immersve.algo.ts:616
 	// sendAssetTransfer({
 	//             sender: this.app.address,
 	//             assetReceiver: this.settlement_address.value,
@@ -2047,23 +2017,23 @@ settle:
 	int axfer
 	itxn_field TypeEnum
 
-	// src/Immersve.algo.ts:624
+	// src/Immersve.algo.ts:617
 	// sender: this.app.address
 	global CurrentApplicationAddress
 	itxn_field Sender
 
-	// src/Immersve.algo.ts:625
+	// src/Immersve.algo.ts:618
 	// assetReceiver: this.settlement_address.value
 	byte 0x7361 // "sa"
 	app_global_get
 	itxn_field AssetReceiver
 
-	// src/Immersve.algo.ts:626
+	// src/Immersve.algo.ts:619
 	// xferAsset: asset
 	frame_dig -1 // asset: AssetID
 	itxn_field XferAsset
 
-	// src/Immersve.algo.ts:627
+	// src/Immersve.algo.ts:620
 	// assetAmount: amount
 	frame_dig -2 // amount: uint64
 	itxn_field AssetAmount
@@ -2075,7 +2045,7 @@ settle:
 	// Submit inner transaction
 	itxn_submit
 
-	// src/Immersve.algo.ts:630
+	// src/Immersve.algo.ts:623
 	// this.Settlement.log({
 	//             recipient: this.settlement_address.value,
 	//             asset: asset,
@@ -2097,7 +2067,7 @@ settle:
 	concat
 	log
 
-	// src/Immersve.algo.ts:638
+	// src/Immersve.algo.ts:631
 	// this.settlement_nonce.value = this.settlement_nonce.value + 1
 	byte 0x736e // "sn"
 	dup
@@ -2150,7 +2120,7 @@ settle:
 cardFundEnableAsset:
 	proto 4 0
 
-	// src/Immersve.algo.ts:650
+	// src/Immersve.algo.ts:643
 	// assert(this.isOwner() || this.isCardFundOwner(partnerChannel, cardFund))
 	callsub isOwner
 	dup
@@ -2163,7 +2133,7 @@ cardFundEnableAsset:
 *skip_or1:
 	assert
 
-	// src/Immersve.algo.ts:652
+	// src/Immersve.algo.ts:645
 	// verifyPayTxn(mbr, {
 	//             receiver: this.app.address,
 	//             amount: globals.assetOptInMinBalance,
@@ -2182,7 +2152,33 @@ cardFundEnableAsset:
 	==
 	assert
 
-	// src/Immersve.algo.ts:657
+	// src/Immersve.algo.ts:650
+	// sendPayment({
+	//             receiver: cardFund,
+	//             amount: globals.assetOptInMinBalance,
+	//         })
+	itxn_begin
+	int pay
+	itxn_field TypeEnum
+
+	// src/Immersve.algo.ts:651
+	// receiver: cardFund
+	frame_dig -3 // cardFund: Address
+	itxn_field Receiver
+
+	// src/Immersve.algo.ts:652
+	// amount: globals.assetOptInMinBalance
+	global AssetOptInMinBalance
+	itxn_field Amount
+
+	// Fee field not set, defaulting to 0
+	int 0
+	itxn_field Fee
+
+	// Submit inner transaction
+	itxn_submit
+
+	// src/Immersve.algo.ts:655
 	// this.cardFundAssetOptIn(cardFund, asset)
 	frame_dig -4 // asset: AssetID
 	frame_dig -3 // cardFund: Address
@@ -2222,7 +2218,7 @@ cardFundEnableAsset:
 cardFundDisableAsset:
 	proto 3 0
 
-	// src/Immersve.algo.ts:668
+	// src/Immersve.algo.ts:666
 	// assert(this.isOwner() || this.isCardFundOwner(partnerChannel, cardFund))
 	callsub isOwner
 	dup
@@ -2235,7 +2231,7 @@ cardFundDisableAsset:
 *skip_or2:
 	assert
 
-	// src/Immersve.algo.ts:670
+	// src/Immersve.algo.ts:668
 	// this.cardFundAssetCloseOut(cardFund, asset)
 	frame_dig -3 // asset: AssetID
 	frame_dig -2 // cardFund: Address
@@ -2297,7 +2293,7 @@ cardFundWithdrawalRequest:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:690
+	// src/Immersve.algo.ts:688
 	// assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card))
 	callsub isOwner
 	dup
@@ -2310,7 +2306,7 @@ cardFundWithdrawalRequest:
 *skip_or3:
 	assert
 
-	// src/Immersve.algo.ts:692
+	// src/Immersve.algo.ts:690
 	// withdrawal: WithdrawalRequest = {
 	//             cardFund: card,
 	//             recipient: recipient,
@@ -2341,7 +2337,7 @@ cardFundWithdrawalRequest:
 	concat
 	frame_bury 0 // withdrawal: WithdrawalRequest
 
-	// src/Immersve.algo.ts:700
+	// src/Immersve.algo.ts:698
 	// this.withdrawal_nonce(this.txn.sender).value = this.withdrawal_nonce(this.txn.sender).value + 1
 	txn Sender
 	byte 0x776e // "wn"
@@ -2352,20 +2348,20 @@ cardFundWithdrawalRequest:
 	+
 	app_local_put
 
-	// src/Immersve.algo.ts:701
+	// src/Immersve.algo.ts:699
 	// withdrawal_hash = sha256(rawBytes(withdrawal))
 	frame_dig 0 // withdrawal: WithdrawalRequest
 	sha256
 	frame_bury 1 // withdrawal_hash: byte[32]
 
-	// src/Immersve.algo.ts:703
+	// src/Immersve.algo.ts:701
 	// this.withdrawals(this.txn.sender, withdrawal_hash).value = withdrawal
 	txn Sender
 	frame_dig 1 // withdrawal_hash: byte[32]
 	frame_dig 0 // withdrawal: WithdrawalRequest
 	app_local_put
 
-	// src/Immersve.algo.ts:705
+	// src/Immersve.algo.ts:703
 	// this.WithdrawalRequest.log({
 	//             cardFund: withdrawal.cardFund,
 	//             recipient: withdrawal.recipient,
@@ -2403,7 +2399,7 @@ cardFundWithdrawalRequest:
 	concat
 	log
 
-	// src/Immersve.algo.ts:714
+	// src/Immersve.algo.ts:712
 	// return withdrawal_hash;
 	frame_dig 1 // withdrawal_hash: byte[32]
 
@@ -2450,7 +2446,7 @@ cardFundWithdrawalRequest:
 cardFundWithdrawalCancel:
 	proto 3 0
 
-	// src/Immersve.algo.ts:724
+	// src/Immersve.algo.ts:722
 	// assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card))
 	callsub isOwner
 	dup
@@ -2463,7 +2459,7 @@ cardFundWithdrawalCancel:
 *skip_or4:
 	assert
 
-	// src/Immersve.algo.ts:726
+	// src/Immersve.algo.ts:724
 	// this.withdrawals(this.txn.sender, withdrawal_hash).delete()
 	txn Sender
 	frame_dig -3 // withdrawal_hash: bytes32
@@ -2510,7 +2506,7 @@ cardFundWithdraw:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:738
+	// src/Immersve.algo.ts:736
 	// assert(this.isOwner() || this.isCardFundOwner(partnerChannel, card))
 	callsub isOwner
 	dup
@@ -2523,17 +2519,17 @@ cardFundWithdraw:
 *skip_or5:
 	assert
 
-	// src/Immersve.algo.ts:740
+	// src/Immersve.algo.ts:738
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	frame_dig -3 // withdrawal_hash: bytes32
 	frame_bury 0 // storage key//withdrawal
 
-	// src/Immersve.algo.ts:740
+	// src/Immersve.algo.ts:738
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	txn Sender
 	frame_bury 1 // storage account//withdrawal
 
-	// src/Immersve.algo.ts:742
+	// src/Immersve.algo.ts:740
 	// assert(globals.latestTimestamp >= withdrawal.timestamp || this.isOwner())
 	global LatestTimestamp
 	frame_dig 1 // storage account//withdrawal
@@ -2550,14 +2546,14 @@ cardFundWithdraw:
 *skip_or6:
 	assert
 
-	// src/Immersve.algo.ts:745
+	// src/Immersve.algo.ts:743
 	// this.withdrawFunds(withdrawal)
 	frame_dig 1 // storage account//withdrawal
 	frame_dig 0 // storage key//withdrawal
 	app_local_get
 	callsub withdrawFunds
 
-	// src/Immersve.algo.ts:748
+	// src/Immersve.algo.ts:746
 	// this.withdrawals(this.txn.sender, withdrawal_hash).delete()
 	txn Sender
 	frame_dig -3 // withdrawal_hash: bytes32
@@ -2613,25 +2609,25 @@ cardFundWithdrawEarly:
 	byte 0x
 	dup
 
-	// src/Immersve.algo.ts:764
+	// src/Immersve.algo.ts:762
 	// assert(this.isCardFundOwner(partnerChannel, card))
 	frame_dig -2 // card: Address
 	frame_dig -1 // partnerChannel: string
 	callsub isCardFundOwner
 	assert
 
-	// src/Immersve.algo.ts:766
+	// src/Immersve.algo.ts:764
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	frame_dig -3 // withdrawal_hash: bytes32
 	frame_bury 0 // storage key//withdrawal
 
-	// src/Immersve.algo.ts:766
+	// src/Immersve.algo.ts:764
 	// withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value
 	txn Sender
 	frame_bury 1 // storage account//withdrawal
 
 	// *if1_condition
-	// src/Immersve.algo.ts:769
+	// src/Immersve.algo.ts:767
 	// globals.latestTimestamp < withdrawal.timestamp
 	global LatestTimestamp
 	frame_dig 1 // storage account//withdrawal
@@ -2646,14 +2642,14 @@ cardFundWithdrawEarly:
 *while_0:
 
 *while_0_continue:
-	// src/Immersve.algo.ts:772
+	// src/Immersve.algo.ts:770
 	// globals.opcodeBudget < 2500
 	global OpcodeBudget
 	int 2500
 	<
 	bz *while_0_end
 
-	// src/Immersve.algo.ts:773
+	// src/Immersve.algo.ts:771
 	// increaseOpcodeBudget()
 	itxn_begin
 	int appl
@@ -2670,7 +2666,7 @@ cardFundWithdrawEarly:
 	b *while_0
 
 *while_0_end:
-	// src/Immersve.algo.ts:776
+	// src/Immersve.algo.ts:774
 	// assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value))
 	frame_dig -3 // withdrawal_hash: bytes32
 	frame_dig -4 // early_withdrawal_sig: bytes32
@@ -2680,14 +2676,14 @@ cardFundWithdrawEarly:
 	assert
 
 *if1_end:
-	// src/Immersve.algo.ts:780
+	// src/Immersve.algo.ts:778
 	// this.withdrawFunds(withdrawal)
 	frame_dig 1 // storage account//withdrawal
 	frame_dig 0 // storage key//withdrawal
 	app_local_get
 	callsub withdrawFunds
 
-	// src/Immersve.algo.ts:783
+	// src/Immersve.algo.ts:781
 	// this.withdrawals(this.txn.sender, withdrawal_hash).delete()
 	txn Sender
 	frame_dig -3 // withdrawal_hash: bytes32

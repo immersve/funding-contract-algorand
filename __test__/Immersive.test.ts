@@ -188,7 +188,7 @@ describe('Immersve', () => {
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: immersve.addr,
             to: appAddress,
-            amount: 200_000 + boxCost, // TODO: Use minimum balance + asset optin cost + box cost
+            amount: 200_000 + boxCost, // TODO: Use minimum balance + asset opt-in cost + box cost
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
@@ -198,7 +198,57 @@ describe('Immersve', () => {
         );
     });
 
-    test('Create new card', async () => {
+    test('Create new card without assets', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
+
+        // 2500 per box, 400 per byte: prefix + partner name + addr length
+        const boxCost = 2500 + 400 * (3 + 4 + 'Pera'.length + 32 + 32);
+
+        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            from: user2.addr,
+            to: appAddress,
+            amount: 100_000 + boxCost,
+            suggestedParams: await algod.getTransactionParams().do(),
+        });
+        const result = await appClient.cardFundCreate(
+            {
+                mbr,
+                partnerChannel: 'Pera',
+                asset: 0,
+            },
+            {
+                sender: user2,
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(4_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+        expect(result.return).toBeDefined();
+
+        newCardAddress = result.return!;
+    });
+
+    test('Close card without assets', async () => {
+        const result = await appClient.cardFundClose(
+            {
+                partnerChannel: 'Pera',
+                cardFundOwner: user2.addr,
+                card: newCardAddress,
+            },
+            {
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(3_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Create new card with FakeUSDC', async () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
 
@@ -220,7 +270,7 @@ describe('Immersve', () => {
             {
                 sender: user,
                 sendParams: {
-                    fee: AlgoAmount.MicroAlgos(6_000),
+                    fee: AlgoAmount.MicroAlgos(5_000),
                     populateAppCallResources: true,
                 },
             }
