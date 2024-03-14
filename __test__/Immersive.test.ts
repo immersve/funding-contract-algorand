@@ -127,7 +127,10 @@ describe('Immersve', () => {
     });
 
     test('Set withdrawal rounds', async () => {
-        const result = await appClient.setWithdrawalRounds({ rounds: 1 });
+        // A real value would be:
+        // 60 * 60 * 24 * 5 = 432_000 seconds = 5 days
+        // We're using 0 seconds to allow for instant withdrawals
+        const result = await appClient.setWithdrawalTimeout({ seconds: 0 });
 
         expect(result.confirmation!.poolError).toBe('');
     });
@@ -195,24 +198,47 @@ describe('Immersve', () => {
         );
     });
 
-    test('Accept FakeUSDC for Partner', async () => {
+    test('Create new card', async () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
 
+        // 2500 per box, 400 per byte: prefix + partner name + addr length
+        const boxCost = 2500 + 400 * (3 + 4 + 'Pera'.length + 32 + 32);
+
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            from: immersve.addr,
+            from: user.addr,
             to: appAddress,
-            amount: 100_000,
+            amount: 100_000 + 100_000 + boxCost,
             suggestedParams: await algod.getTransactionParams().do(),
         });
-
-        const result = await appClient.partnerChannelAcceptAsset(
+        const result = await appClient.cardFundCreate(
             {
                 mbr,
                 partnerChannel: 'Pera',
                 asset: fakeUSDC,
             },
             {
+                sender: user,
+                sendParams: {
+                    fee: AlgoAmount.MicroAlgos(6_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+        expect(result.return).toBeDefined();
+
+        newCardAddress = result.return!;
+    });
+
+    test('Disable FakeUSDC for card', async () => {
+        const result = await appClient.cardFundDisableAsset(
+            {
+                partnerChannel: 'Pera',
+                cardFund: newCardAddress,
+                asset: fakeUSDC,
+            },
+            {
+                sender: user,
                 sendParams: {
                     fee: microAlgos(3_000),
                     populateAppCallResources: true,
@@ -221,37 +247,6 @@ describe('Immersve', () => {
         );
 
         expect(result.confirmation!.poolError).toBe('');
-    });
-
-    test('Create new card', async () => {
-        const { appAddress } = await appClient.appClient.getAppReference();
-        const { algod } = fixture.context;
-
-        // 2500 per box, 400 per byte: prefix + partner name + addr length
-        const boxCost = 2500 + 400 * (1 + 4 + 'Pera'.length + 32 + 32);
-
-        const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            from: immersve.addr,
-            to: appAddress,
-            amount: 100_000 + boxCost,
-            suggestedParams: await algod.getTransactionParams().do(),
-        });
-        const result = await appClient.cardFundCreate(
-            {
-                mbr,
-                partnerChannel: 'Pera',
-                cardFundOwner: user.addr,
-            },
-            {
-                sendParams: {
-                    fee: AlgoAmount.MicroAlgos(5_000),
-                    populateAppCallResources: true,
-                },
-            }
-        );
-        expect(result.return).toBeDefined();
-
-        newCardAddress = result.return!;
     });
 
     test('Enable FakeUSDC for card', async () => {
@@ -269,7 +264,7 @@ describe('Immersve', () => {
             {
                 mbr,
                 partnerChannel: 'Pera',
-                card: newCardAddress,
+                cardFund: newCardAddress,
                 asset: fakeUSDC,
             },
             {
@@ -429,7 +424,7 @@ describe('Immersve', () => {
         const result = await appClient.cardFundDisableAsset(
             {
                 partnerChannel: 'Pera',
-                card: newCardAddress,
+                cardFund: newCardAddress,
                 asset: fakeUSDC,
             },
             {
@@ -454,23 +449,6 @@ describe('Immersve', () => {
             {
                 sendParams: {
                     fee: AlgoAmount.MicroAlgos(3_000),
-                    populateAppCallResources: true,
-                },
-            }
-        );
-
-        expect(result.confirmation!.poolError).toBe('');
-    });
-
-    test('Reject FakeUSDC for Partner', async () => {
-        const result = await appClient.partnerChannelRejectAsset(
-            {
-                partnerChannel: 'Pera',
-                asset: fakeUSDC,
-            },
-            {
-                sendParams: {
-                    fee: microAlgos(3_000),
                     populateAppCallResources: true,
                 },
             }

@@ -54,13 +54,13 @@
       }
     },
     {
-      "name": "setWithdrawalRounds",
-      "desc": "Set the number of rounds a withdrawal request must wait until being withdrawn",
+      "name": "setWithdrawalTimeout",
+      "desc": "Set the number of seconds a withdrawal request must wait until being withdrawn",
       "args": [
         {
-          "name": "rounds",
+          "name": "seconds",
           "type": "uint64",
-          "desc": "New number of rounds to wait"
+          "desc": "New number of seconds to wait"
         }
       ],
       "returns": {
@@ -132,16 +132,18 @@
       "args": [
         {
           "name": "mbr",
-          "type": "pay"
+          "type": "pay",
+          "desc": "Payment transaction of minimum balance requirement"
         },
         {
           "name": "partnerChannel",
-          "type": "string"
+          "type": "string",
+          "desc": "Funding Channel name"
         },
         {
-          "name": "cardFundOwner",
-          "type": "address",
-          "desc": "Address to have control over asset withdrawals"
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset to opt-in to. 0 = No asset opt-in"
         }
       ],
       "returns": {
@@ -247,48 +249,6 @@
           "name": "asset",
           "type": "uint64",
           "desc": "The AssetID of the asset being transferred."
-        }
-      ],
-      "returns": {
-        "type": "void"
-      }
-    },
-    {
-      "name": "partnerChannelAcceptAsset",
-      "desc": "Allows the specified asset to be transferred for users of this partner channel.",
-      "args": [
-        {
-          "name": "mbr",
-          "type": "pay",
-          "desc": "The PayTxn object representing the transaction."
-        },
-        {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "The partner channel to allow the asset for."
-        },
-        {
-          "name": "asset",
-          "type": "uint64",
-          "desc": "The ID of the asset to be allowed."
-        }
-      ],
-      "returns": {
-        "type": "void"
-      }
-    },
-    {
-      "name": "partnerChannelRejectAsset",
-      "desc": "Revokes an asset by closing out its balance and transferring the minimum balance to the sender.",
-      "args": [
-        {
-          "name": "partnerChannel",
-          "type": "string"
-        },
-        {
-          "name": "asset",
-          "type": "uint64",
-          "desc": "The ID of the asset to revoke."
         }
       ],
       "returns": {
@@ -497,7 +457,7 @@
           "desc": "Funding Channel name"
         },
         {
-          "name": "card",
+          "name": "cardFund",
           "type": "address",
           "desc": "Address to add asset to"
         },
@@ -521,7 +481,7 @@
           "desc": "The funding channel associated with the card."
         },
         {
-          "name": "card",
+          "name": "cardFund",
           "type": "address",
           "desc": "The address of the card."
         },
@@ -593,9 +553,9 @@
               "desc": "Amount to withdraw"
             },
             {
-              "name": "round",
+              "name": "timestamp",
               "type": "uint64",
-              "desc": "Round that must be reached before withdrawal can be completed"
+              "desc": "Timestamp that must be reached before withdrawal can be completed"
             },
             {
               "name": "nonce",
@@ -657,7 +617,7 @@
     },
     {
       "name": "cardFundWithdrawEarly",
-      "desc": "Withdraws funds before the withdrawal round has lapsed, by using the early withdrawal signature provided by Immersve.",
+      "desc": "Withdraws funds before the withdrawal timestamp has lapsed, by using the early withdrawal signature provided by Immersve.",
       "args": [
         {
           "name": "partnerChannel",
@@ -842,9 +802,9 @@
           "desc": "Amount to withdraw"
         },
         {
-          "name": "round",
+          "name": "timestamp",
           "type": "uint64",
-          "desc": "Round that must be reached before withdrawal can be completed"
+          "desc": "Timestamp that must be reached before withdrawal can be completed"
         },
         {
           "name": "nonce",
