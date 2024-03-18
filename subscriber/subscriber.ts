@@ -3,6 +3,7 @@
 import { AlgorandSubscriber } from '@algorandfoundation/algokit-subscriber';
 import algosdk from 'algosdk';
 import * as algokit from '@algorandfoundation/algokit-utils';
+import appSpec from '../dist/Master.arc32.json';
 
 type TotalReceived = { [address: string]: { [asset: number]: number } };
 
@@ -41,16 +42,28 @@ function commitTotalReceived(totalReceived: TotalReceived) {
 
 const subscriber = new AlgorandSubscriber(
     {
-        // Subscribe to every asset transfer
-        // The filtering will be done in the event handler
         events: [
+            // Subscribe to every asset transfer
+            // The filtering will be done in the event handler
+            // {
+            //     eventName: 'assetTransfers',
+            //     filter: {
+            //         type: algosdk.TransactionType.axfer,
+            //     },
+            // },
+
+            // Subscribe to every event in the master contract
             {
-                eventName: 'assetTransfers',
+                eventName: 'Master Event',
                 filter: {
-                    type: algosdk.TransactionType.axfer,
+                    type: algosdk.TransactionType.appl,
+                    arc28Events: appSpec.contract.events.map((e) => {
+                        return { groupName: 'master', eventName: e.name };
+                    }),
                 },
             },
         ],
+        arc28Events: [{ groupName: 'master', events: appSpec.contract.events }],
         // if there is downtime of this service for longer than 1000 blocks, use indexer to catch up
         syncBehaviour: 'catchup-with-indexer',
         // this is how we save which round was last processed
@@ -97,4 +110,23 @@ subscriber.onBatch('assetTransfers', (events) => {
     commitTotalReceived(totalReceived);
 });
 
+subscriber.onBatch('Master Event', (events) => {
+    events.forEach((event) => {
+        event.arc28Events?.forEach((e) => {
+            // Convert bigint to number just so we can JSON stringify it
+            const args: Record<string, algosdk.ABIValue> = {};
+            Object.keys(e.argsByName).forEach((key) => {
+                if (typeof e.argsByName[key] === 'bigint') {
+                    args[key] = Number(e.argsByName[key]);
+                    return;
+                }
+                args[key] = e.argsByName[key];
+            });
+
+            console.log(`${e.eventName}: ${JSON.stringify(args, null, 2)}`);
+        });
+    });
+});
+
+console.log();
 subscriber.start();
