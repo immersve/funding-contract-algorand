@@ -1,0 +1,67 @@
+{
+  "name": "Placeholder",
+  "desc": "",
+  "methods": [
+    {
+      "name": "owner",
+      "readonly": true,
+      "args": [],
+      "returns": {
+        "type": "address"
+      }
+    },
+    {
+      "name": "transferOwnership",
+      "desc": "Transfers the ownership of the contract to a new owner.Requires the caller to be the current owner.",
+      "args": [
+        {
+          "name": "newOwner",
+          "type": "address",
+          "desc": "The address of the new owner."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "deploy",
+      "args": [],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "update",
+      "args": [],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "destroy",
+      "args": [],
+      "returns": {
+        "type": "void"
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "OwnershipTransferred",
+      "args": [
+        {
+          "name": "previousOwner",
+          "type": "address",
+          "desc": "Previous owner address"
+        },
+        {
+          "name": "newOwner",
+          "type": "address",
+          "desc": "New owner address"
+        }
+      ],
+      "desc": "Event emitted when ownership of the contract is transferred."
+    }
+  ]
+}

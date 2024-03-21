@@ -5,9 +5,11 @@ import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
 import { sendTransaction, microAlgos } from '@algorandfoundation/algokit-utils';
 import { MasterClient } from '../client/MasterClient';
+import { PlaceholderClient } from '../client/PlaceholderClient';
 
 const fixture = algorandFixture({ testAccountFunding: AlgoAmount.MicroAlgos(0) });
 
+let placeholderClient: PlaceholderClient;
 let appClient: MasterClient;
 
 describe('Immersve', () => {
@@ -111,7 +113,7 @@ describe('Immersve', () => {
             algod
         );
 
-        appClient = new MasterClient(
+        placeholderClient = new PlaceholderClient(
             {
                 id: 0,
                 resolveBy: 'id',
@@ -120,10 +122,49 @@ describe('Immersve', () => {
             algod
         );
 
-        await appClient.create.deploy({ owner: immersve.addr });
+        await placeholderClient.create.deploy(
+            { owner: immersve.addr },
+            {
+                schema: {
+                    extraPages: 3,
+                    globalInts: 32,
+                    globalByteSlices: 32,
+                    localInts: 8,
+                    localByteSlices: 8,
+                },
+            }
+        );
 
         // FIX: Do I need to fund the app account?
-        await appClient.appClient.fundAppAccount({ amount: microAlgos(100_000) });
+        await placeholderClient.appClient.fundAppAccount({ amount: microAlgos(100_000) });
+    });
+
+    test('Upgrade Placeholder with Master', async () => {
+        const { appId } = await placeholderClient.appClient.getAppReference();
+        const { algod } = fixture.context;
+
+        appClient = new MasterClient(
+            {
+                id: appId,
+                resolveBy: 'id',
+                sender: immersve,
+            },
+            algod
+        );
+
+        const result = await appClient.update.update(
+            {
+                master: immersve.addr,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.confirmation!.poolError).toBe('');
     });
 
     test('Set withdrawal rounds', async () => {

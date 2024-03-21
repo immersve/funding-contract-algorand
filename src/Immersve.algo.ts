@@ -42,6 +42,25 @@ type WithdrawalRequest = {
     nonce: uint64;
 };
 
+// eslint-disable-next-line no-unused-vars
+class Placeholder extends Contract.extend(Ownable) {
+    // Updatable and destroyable placeholder contract
+    @allow.create('NoOp')
+    deploy(): void {
+        this._transferOwnership(this.txn.sender);
+    }
+
+    @allow.call('UpdateApplication')
+    update(): void {
+        assert(this.txn.sender === this.app.creator);
+    }
+
+    @allow.call('DeleteApplication')
+    destroy(): void {
+        assert(this.txn.sender === this.app.creator);
+    }
+}
+
 class ControlledAddress extends Contract {
     /**
      * Create a new account, rekeying it to the caller application address
