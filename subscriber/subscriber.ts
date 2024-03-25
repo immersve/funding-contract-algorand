@@ -53,7 +53,7 @@ const subscriber = new AlgorandSubscriber(
             },
         ],
         arc28Events: [{ groupName: 'master', events: appSpec.contract.events }],
-        // if there is downtime of this service for longer than 1000 blocks, use indexer to catch up
+        // use an archival node to sync from where we last left off (AlgoNode/Nodely is archival)
         syncBehaviour: 'sync-oldest',
         // this is how we save which round was last processed
         // probably want to commit to dynamodb in prod
