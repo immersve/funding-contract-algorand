@@ -12,7 +12,6 @@ import type {
   AppCompilationResult,
   AppReference,
   AppState,
-  AppStorageSchema,
   CoreAppCallArgs,
   RawAppCallArgs,
   TealTemplateParams,
@@ -1161,13 +1160,6 @@ export type AppClientComposeCallCoreParams = Omit<AppClientCallCoreParams, 'send
 }
 export type AppClientComposeExecuteParams = Pick<SendTransactionParams, 'skipWaiting' | 'maxRoundsToWaitForConfirmation' | 'populateAppCallResources' | 'suppressLog'>
 
-export type IncludeSchema = {
-  /**
-   * Any overrides for the storage schema to request for the created app; by default the schema indicated by the app spec is used.
-   */
-  schema?: Partial<AppStorageSchema>
-}
-
 /**
  * Defines the types of available calls and state of the Master smart contract.
  */
@@ -1477,9 +1469,9 @@ export type Master = {
         /**
          * Hash of the withdrawal request
          */
-        withdrawalHash: Uint8Array
+        withdrawal_hash: Uint8Array
       }
-      argsTuple: [partnerChannel: string, card: string, withdrawalHash: Uint8Array]
+      argsTuple: [partnerChannel: string, card: string, withdrawal_hash: Uint8Array]
       returns: void
     }>
     & Record<'cardFundWithdraw(string,address,byte[32])void' | 'cardFundWithdraw', {
@@ -1495,9 +1487,9 @@ export type Master = {
         /**
          * Hash of the withdrawal request
          */
-        withdrawalHash: Uint8Array
+        withdrawal_hash: Uint8Array
       }
-      argsTuple: [partnerChannel: string, card: string, withdrawalHash: Uint8Array]
+      argsTuple: [partnerChannel: string, card: string, withdrawal_hash: Uint8Array]
       returns: void
     }>
     & Record<'cardFundWithdrawEarly(string,address,byte[32],byte[32])void' | 'cardFundWithdrawEarly', {
@@ -1513,13 +1505,13 @@ export type Master = {
         /**
          * The hash of the withdrawal.
          */
-        withdrawalHash: Uint8Array
+        withdrawal_hash: Uint8Array
         /**
          * The signature for early withdrawal.
          */
-        earlyWithdrawalSig: Uint8Array
+        early_withdrawal_sig: Uint8Array
       }
-      argsTuple: [partnerChannel: string, card: string, withdrawalHash: Uint8Array, earlyWithdrawalSig: Uint8Array]
+      argsTuple: [partnerChannel: string, card: string, withdrawal_hash: Uint8Array, early_withdrawal_sig: Uint8Array]
       returns: void
     }>
   /**
@@ -1527,16 +1519,16 @@ export type Master = {
    */
   state: {
     global: {
-      owner?: BinaryState
-      cfac?: IntegerState
-      pcac?: IntegerState
-      wwt?: IntegerState
-      ewpk?: BinaryState
-      sn?: IntegerState
-      sa?: BinaryState
+      '_owner'?: BinaryState
+      'cfac'?: IntegerState
+      'pcac'?: IntegerState
+      'wwt'?: IntegerState
+      'ewpk'?: BinaryState
+      'sn'?: IntegerState
+      'sa'?: BinaryState
     }
     local: {
-      wn?: IntegerState
+      'wn'?: IntegerState
     }
   }
 }
@@ -1718,7 +1710,7 @@ export abstract class MasterCallFactory {
       cardFundWithdraw(args: MethodArgs<'cardFundWithdraw(string,address,byte[32])void'>, params: AppClientCallCoreParams & CoreAppCallArgs = {}) {
         return {
           method: 'cardFundWithdraw(string,address,byte[32])void' as const,
-          methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawalHash],
+          methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawal_hash],
           ...params,
         }
       },
@@ -2035,7 +2027,7 @@ export abstract class MasterCallFactory {
   static cardFundWithdrawalCancel(args: MethodArgs<'cardFundWithdrawalCancel(string,address,byte[32])void'>, params: AppClientCallCoreParams & CoreAppCallArgs) {
     return {
       method: 'cardFundWithdrawalCancel(string,address,byte[32])void' as const,
-      methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawalHash],
+      methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawal_hash],
       ...params,
     }
   }
@@ -2051,7 +2043,7 @@ export abstract class MasterCallFactory {
   static cardFundWithdraw(args: MethodArgs<'cardFundWithdraw(string,address,byte[32])void'>, params: AppClientCallCoreParams & CoreAppCallArgs) {
     return {
       method: 'cardFundWithdraw(string,address,byte[32])void' as const,
-      methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawalHash],
+      methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawal_hash],
       ...params,
     }
   }
@@ -2067,7 +2059,7 @@ export abstract class MasterCallFactory {
   static cardFundWithdrawEarly(args: MethodArgs<'cardFundWithdrawEarly(string,address,byte[32],byte[32])void'>, params: AppClientCallCoreParams & CoreAppCallArgs) {
     return {
       method: 'cardFundWithdrawEarly(string,address,byte[32],byte[32])void' as const,
-      methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawalHash, args.earlyWithdrawalSig],
+      methodArgs: Array.isArray(args) ? args : [args.partnerChannel, args.card, args.withdrawal_hash, args.early_withdrawal_sig],
       ...params,
     }
   }
@@ -2132,7 +2124,7 @@ export class MasterClient {
    * @param params The arguments for the contract calls and any additional parameters for the call
    * @returns The deployment result
    */
-  public deploy(params: MasterDeployArgs & AppClientDeployCoreParams & IncludeSchema = {}): ReturnType<ApplicationClient['deploy']> {
+  public deploy(params: MasterDeployArgs & AppClientDeployCoreParams = {}): ReturnType<ApplicationClient['deploy']> {
     const createArgs = params.createCall?.(MasterCallFactory.create)
     const updateArgs = params.updateCall?.(MasterCallFactory.update)
     const deleteArgs = params.deleteCall?.(MasterCallFactory.delete)
@@ -2158,7 +2150,7 @@ export class MasterClient {
        * @param params Any additional parameters for the call
        * @returns The create result
        */
-      async deploy(args: MethodArgs<'deploy(address)address'>, params: AppClientCallCoreParams & AppClientCompilationParams& IncludeSchema  & (OnCompleteNoOp) = {}) {
+      async deploy(args: MethodArgs<'deploy(address)address'>, params: AppClientCallCoreParams & AppClientCompilationParams & (OnCompleteNoOp) = {}) {
         return $this.mapReturnValue<MethodReturn<'deploy(address)address'>, AppCreateCallTransactionResult>(await $this.appClient.create(MasterCallFactory.create.deploy(args, params)))
       },
     }
@@ -2580,7 +2572,7 @@ export class MasterClient {
   public async getGlobalState(): Promise<Master['state']['global']> {
     const state = await this.appClient.getGlobalState()
     return {
-      get owner() {
+      get _owner() {
         return MasterClient.getBinaryState(state, '_owner')
       },
       get cfac() {

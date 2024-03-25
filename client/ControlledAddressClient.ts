@@ -12,7 +12,6 @@ import type {
   AppCompilationResult,
   AppReference,
   AppState,
-  AppStorageSchema,
   CoreAppCallArgs,
   RawAppCallArgs,
   TealTemplateParams,
@@ -138,13 +137,6 @@ export type AppClientComposeCallCoreParams = Omit<AppClientCallCoreParams, 'send
   sendParams?: Omit<SendTransactionParams, 'skipSending' | 'atc' | 'skipWaiting' | 'maxRoundsToWaitForConfirmation' | 'populateAppCallResources'>
 }
 export type AppClientComposeExecuteParams = Pick<SendTransactionParams, 'skipWaiting' | 'maxRoundsToWaitForConfirmation' | 'populateAppCallResources' | 'suppressLog'>
-
-export type IncludeSchema = {
-  /**
-   * Any overrides for the storage schema to request for the created app; by default the schema indicated by the app spec is used.
-   */
-  schema?: Partial<AppStorageSchema>
-}
 
 /**
  * Defines the types of available calls and state of the ControlledAddress smart contract.
@@ -296,7 +288,7 @@ export class ControlledAddressClient {
    * @param params The arguments for the contract calls and any additional parameters for the call
    * @returns The deployment result
    */
-  public deploy(params: ControlledAddressDeployArgs & AppClientDeployCoreParams & IncludeSchema = {}): ReturnType<ApplicationClient['deploy']> {
+  public deploy(params: ControlledAddressDeployArgs & AppClientDeployCoreParams = {}): ReturnType<ApplicationClient['deploy']> {
     const createArgs = params.createCall?.(ControlledAddressCallFactory.create)
     return this.appClient.deploy({
       ...params,
@@ -318,7 +310,7 @@ export class ControlledAddressClient {
        * @param params Any additional parameters for the call
        * @returns The create result: New account address
        */
-      async new(args: MethodArgs<'new()address'>, params: AppClientCallCoreParams & AppClientCompilationParams& IncludeSchema  & (OnCompleteDelApp)) {
+      async new(args: MethodArgs<'new()address'>, params: AppClientCallCoreParams & AppClientCompilationParams & (OnCompleteDelApp)) {
         return $this.mapReturnValue<MethodReturn<'new()address'>, AppCreateCallTransactionResult>(await $this.appClient.create(ControlledAddressCallFactory.create.new(args, params)))
       },
     }
