@@ -7,7 +7,6 @@ import { BalanceChangeRole, SubscribedTransaction } from '@algorandfoundation/al
 import appSpec from '../dist/Master.arc32.json';
 
 const algod = algokit.getAlgoClient(algokit.getDefaultLocalNetConfig('algod'));
-const indexer = algokit.getAlgoIndexerClient(algokit.getDefaultLocalNetConfig('indexer'));
 let lastRound = 0;
 
 /**
@@ -64,8 +63,7 @@ const subscriber = new AlgorandSubscriber(
             },
         },
     },
-    algod,
-    indexer
+    algod
 );
 
 function handleAssetReceive(
