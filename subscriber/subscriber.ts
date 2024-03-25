@@ -3,9 +3,8 @@
 import { AlgorandSubscriber } from '@algorandfoundation/algokit-subscriber';
 import algosdk from 'algosdk';
 import * as algokit from '@algorandfoundation/algokit-utils';
+import { BalanceChangeRole, SubscribedTransaction } from '@algorandfoundation/algokit-subscriber/types/subscription';
 import appSpec from '../dist/Master.arc32.json';
-
-type TotalReceived = { [address: string]: { [asset: number]: number } };
 
 const algod = algokit.getAlgoClient(algokit.getDefaultLocalNetConfig('algod'));
 const indexer = algokit.getAlgoIndexerClient(algokit.getDefaultLocalNetConfig('indexer'));
@@ -26,35 +25,25 @@ function isSupportedAsset(assetId: number) {
     return !!assetId;
 }
 
-/**
- * Get the total amount of each asset received for each cardFundsAddress and commit it to the DB
- */
-function commitTotalReceived(totalReceived: TotalReceived) {
-    Object.keys(totalReceived).forEach((cardFundsAddress) => {
-        Object.keys(totalReceived[cardFundsAddress]).forEach((asset) => {
-            const amount = totalReceived[cardFundsAddress][Number(asset)];
-
-            // In prod this will commit the amount to DynamoDB
-            console.log(`${cardFundsAddress} received ${amount} of asset ${asset} to address`);
-        });
-    });
-}
-
 const subscriber = new AlgorandSubscriber(
     {
-        events: [
-            // Subscribe to every asset transfer
-            // The filtering will be done in the event handler
-            // {
-            //     eventName: 'assetTransfers',
-            //     filter: {
-            //         type: algosdk.TransactionType.axfer,
-            //     },
-            // },
-
+        filters: [
+            // Subscribe to every time an account receives at least 1 asset
+            {
+                name: 'assetReceive',
+                filter: {
+                    type: algosdk.TransactionType.axfer,
+                    balanceChanges: [
+                        {
+                            role: [BalanceChangeRole.Receiver, BalanceChangeRole.CloseTo],
+                            minAmount: 1,
+                        },
+                    ],
+                },
+            },
             // Subscribe to every event in the master contract
             {
-                eventName: 'Master Event',
+                name: 'masterEvent',
                 filter: {
                     type: algosdk.TransactionType.appl,
                     arc28Events: appSpec.contract.events.map((e) => {
@@ -65,12 +54,12 @@ const subscriber = new AlgorandSubscriber(
         ],
         arc28Events: [{ groupName: 'master', events: appSpec.contract.events }],
         // if there is downtime of this service for longer than 1000 blocks, use indexer to catch up
-        syncBehaviour: 'catchup-with-indexer',
+        syncBehaviour: 'sync-oldest',
         // this is how we save which round was last processed
         // probably want to commit to dynamodb in prod
         watermarkPersistence: {
             get: async () => lastRound,
-            set: async (newWatermark) => {
+            set: async (newWatermark: number) => {
                 lastRound = newWatermark;
             },
         },
@@ -79,54 +68,49 @@ const subscriber = new AlgorandSubscriber(
     indexer
 );
 
-subscriber.onBatch('assetTransfers', (events) => {
-    // This is the total amount of each asset received for each cardFundsAddress
-    const totalReceived: TotalReceived = {};
+function handleAssetReceive(
+    assetsReceived: { [address: string]: { [asset: number]: bigint } },
+    tx: SubscribedTransaction
+) {
+    tx.balanceChanges?.forEach((change) => {
+        const { address, assetId, amount, roles } = change;
+        if (!isSupportedAsset(assetId)) return;
+        if (!isCardFundsAddress(address)) return;
 
-    const addReceived = (address: string, asset: number, amount: number) => {
-        if (!totalReceived[address]) totalReceived[address] = {};
-        if (!totalReceived[address][asset]) totalReceived[address][asset] = 0;
+        // Only care about assets that are received by the card funds address
+        if (roles.includes(BalanceChangeRole.Sender)) return;
 
-        totalReceived[address][asset] += amount;
-    };
-
-    events.forEach((event) => {
-        const axfer = event['asset-transfer-transaction']!;
-
-        const asset = axfer['asset-id'];
-        if (!isSupportedAsset(asset)) return;
-
-        const amount = axfer?.amount;
-        const receiver = axfer?.receiver;
-
-        if (amount && isCardFundsAddress(receiver)) addReceived(receiver, asset, amount);
-
-        const closeAmount = axfer['close-amount'];
-        const closeTo = axfer['close-to'];
-
-        if (closeAmount && isCardFundsAddress(closeTo!)) addReceived(closeTo!, asset, closeAmount);
+        assetsReceived[address] = assetsReceived[address] || {};
+        assetsReceived[address][assetId] = (assetsReceived[address][assetId] || BigInt(0)) + amount;
     });
+}
 
-    commitTotalReceived(totalReceived);
-});
-
-subscriber.onBatch('Master Event', (events) => {
-    events.forEach((event) => {
-        event.arc28Events?.forEach((e) => {
-            // Convert bigint to number just so we can JSON stringify it
-            const args: Record<string, algosdk.ABIValue> = {};
-            Object.keys(e.argsByName).forEach((key) => {
-                if (typeof e.argsByName[key] === 'bigint') {
-                    args[key] = Number(e.argsByName[key]);
-                    return;
-                }
-                args[key] = e.argsByName[key];
-            });
-
-            console.log(`${e.eventName}: ${JSON.stringify(args, null, 2)}`);
+function handleMasterEvent(tx: SubscribedTransaction) {
+    tx.arc28Events?.forEach((e) => {
+        // Convert bigint to number just so we can JSON stringify it
+        const args: Record<string, algosdk.ABIValue> = {};
+        Object.keys(e.argsByName).forEach((key) => {
+            if (typeof e.argsByName[key] === 'bigint') {
+                args[key] = Number(e.argsByName[key]);
+                return;
+            }
+            args[key] = e.argsByName[key];
         });
+
+        console.log(`${e.eventName}: ${JSON.stringify(args, null, 2)}`);
     });
+}
+
+// Every time we poll, handle the events for that block
+subscriber.onPoll((poll) => {
+    const assetsReceived: { [address: string]: { [asset: number]: bigint } } = {};
+
+    poll.subscribedTransactions.forEach((tx) => {
+        if (tx.filtersMatched?.includes('assetReceive')) handleAssetReceive(assetsReceived, tx);
+        if (tx.filtersMatched?.includes('masterEvent')) handleMasterEvent(tx);
+    });
+
+    console.log(`Assets received on round ${poll.currentRound}:`, assetsReceived);
 });
 
-console.log();
 subscriber.start();
