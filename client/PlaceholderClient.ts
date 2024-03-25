@@ -12,7 +12,6 @@ import type {
   AppCompilationResult,
   AppReference,
   AppState,
-  AppStorageSchema,
   CoreAppCallArgs,
   RawAppCallArgs,
   TealTemplateParams,
@@ -216,13 +215,6 @@ export type AppClientComposeCallCoreParams = Omit<AppClientCallCoreParams, 'send
 }
 export type AppClientComposeExecuteParams = Pick<SendTransactionParams, 'skipWaiting' | 'maxRoundsToWaitForConfirmation' | 'populateAppCallResources' | 'suppressLog'>
 
-export type IncludeSchema = {
-  /**
-   * Any overrides for the storage schema to request for the created app; by default the schema indicated by the app spec is used.
-   */
-  schema?: Partial<AppStorageSchema>
-}
-
 /**
  * Defines the types of available calls and state of the Placeholder smart contract.
  */
@@ -270,7 +262,7 @@ export type Placeholder = {
    */
   state: {
     global: {
-      owner?: BinaryState
+      '_owner'?: BinaryState
     }
   }
 }
@@ -506,7 +498,7 @@ export class PlaceholderClient {
    * @param params The arguments for the contract calls and any additional parameters for the call
    * @returns The deployment result
    */
-  public deploy(params: PlaceholderDeployArgs & AppClientDeployCoreParams & IncludeSchema = {}): ReturnType<ApplicationClient['deploy']> {
+  public deploy(params: PlaceholderDeployArgs & AppClientDeployCoreParams = {}): ReturnType<ApplicationClient['deploy']> {
     const createArgs = params.createCall?.(PlaceholderCallFactory.create)
     const updateArgs = params.updateCall?.(PlaceholderCallFactory.update)
     const deleteArgs = params.deleteCall?.(PlaceholderCallFactory.delete)
@@ -532,7 +524,7 @@ export class PlaceholderClient {
        * @param params Any additional parameters for the call
        * @returns The create result
        */
-      async deploy(args: MethodArgs<'deploy()void'>, params: AppClientCallCoreParams & AppClientCompilationParams& IncludeSchema  & (OnCompleteNoOp) = {}) {
+      async deploy(args: MethodArgs<'deploy()void'>, params: AppClientCallCoreParams & AppClientCompilationParams & (OnCompleteNoOp) = {}) {
         return $this.mapReturnValue<MethodReturn<'deploy()void'>, AppCreateCallTransactionResult>(await $this.appClient.create(PlaceholderCallFactory.create.deploy(args, params)))
       },
     }
@@ -660,7 +652,7 @@ export class PlaceholderClient {
   public async getGlobalState(): Promise<Placeholder['state']['global']> {
     const state = await this.appClient.getGlobalState()
     return {
-      get owner() {
+      get _owner() {
         return PlaceholderClient.getBinaryState(state, '_owner')
       },
     }
