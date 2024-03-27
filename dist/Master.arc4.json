@@ -91,7 +91,7 @@
           "desc": "The PayTxn object representing the payment transaction."
         },
         {
-          "name": "partnerChannel",
+          "name": "partnerChannelName",
           "type": "string",
           "desc": "The name of the partner channel."
         }
@@ -106,8 +106,13 @@
           "args": [
             {
               "name": "partnerChannel",
-              "type": "string",
+              "type": "address",
               "desc": "Partner Channel"
+            },
+            {
+              "name": "partnerChannelName",
+              "type": "string",
+              "desc": "Partner Channel Name"
             }
           ],
           "desc": "Partner Channel Created event"
@@ -119,7 +124,7 @@
       "args": [
         {
           "name": "partnerChannel",
-          "type": "string"
+          "type": "address"
         }
       ],
       "returns": {
@@ -137,7 +142,7 @@
         },
         {
           "name": "partnerChannel",
-          "type": "string",
+          "type": "address",
           "desc": "Funding Channel name"
         },
         {
@@ -166,7 +171,7 @@
             },
             {
               "name": "partnerChannel",
-              "type": "string",
+              "type": "address",
               "desc": "Partner Channel"
             }
           ],
@@ -179,19 +184,8 @@
       "desc": "Close account. This permanently removes the rekey and deletes the account from the ledger",
       "args": [
         {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "Funding Channel name"
-        },
-        {
-          "name": "cardFundOwner",
-          "type": "address",
-          "desc": "Address which has control over asset withdrawals"
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "Address to close"
+          "name": "cardFund",
+          "type": "address"
         }
       ],
       "returns": {
@@ -203,19 +197,13 @@
       "desc": "Recovers funds from an old card and transfers them to a new card.Only the owner of the contract can perform this operation.",
       "args": [
         {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "The partner channel associated with the card funds"
+          "name": "cardFund",
+          "type": "address",
+          "desc": "The card fund to recover."
         },
         {
-          "name": "oldCardHolder",
-          "type": "address",
-          "desc": "The address of the old card holder."
-        },
-        {
-          "name": "newCardHolder",
-          "type": "address",
-          "desc": "The address of the new card holder."
+          "name": "newCardFundHolder",
+          "type": "address"
         }
       ],
       "returns": {
@@ -260,13 +248,14 @@
       "desc": "Debits the specified amount of the given asset from the card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
-          "name": "card",
+          "name": "cardFund",
           "type": "address",
-          "desc": "The card account from which the asset will be debited."
+          "desc": "The card fund from which the asset will be debited."
         },
         {
           "name": "asset",
-          "type": "uint64"
+          "type": "uint64",
+          "desc": "The asset to be debited."
         },
         {
           "name": "amount",
@@ -306,13 +295,8 @@
       "desc": "Refunds a specified amount of an asset to a card account.Only the owner of the contract can perform this operation.",
       "args": [
         {
-          "name": "partnerChannel",
-          "type": "string"
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "The card account to refund the asset to."
+          "name": "cardFund",
+          "type": "address"
         },
         {
           "name": "asset",
@@ -320,8 +304,7 @@
         },
         {
           "name": "amount",
-          "type": "uint64",
-          "desc": "The amount of the asset to refund."
+          "type": "uint64"
         }
       ],
       "returns": {
@@ -452,11 +435,6 @@
           "type": "pay"
         },
         {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "Funding Channel name"
-        },
-        {
           "name": "cardFund",
           "type": "address",
           "desc": "Address to add asset to"
@@ -475,11 +453,6 @@
       "name": "cardFundDisableAsset",
       "desc": "Allows the depositor (or owner) to CloseOut of an asset, reducing the minimum balance requirement of the account",
       "args": [
-        {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "The funding channel associated with the card."
-        },
         {
           "name": "cardFund",
           "type": "address",
@@ -500,12 +473,7 @@
       "desc": "Allows the Card Holder (or contract owner) to send an amount of assets from the account",
       "args": [
         {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "Funding Channel name"
-        },
-        {
-          "name": "card",
+          "name": "cardFund",
           "type": "address",
           "desc": "Address to withdraw from"
         },
@@ -572,19 +540,12 @@
       "desc": "Allows the Card Holder (or contract owner) to cancel a withdrawal request",
       "args": [
         {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "Funding Channel name"
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "Address to withdraw from"
+          "name": "cardFund",
+          "type": "address"
         },
         {
           "name": "withdrawal_hash",
-          "type": "byte[32]",
-          "desc": "Hash of the withdrawal request"
+          "type": "byte[32]"
         }
       ],
       "returns": {
@@ -596,19 +557,12 @@
       "desc": "Allows the Card Holder to send an amount of assets from the account",
       "args": [
         {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "Funding Channel name"
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "Address to withdraw from"
+          "name": "cardFund",
+          "type": "address"
         },
         {
           "name": "withdrawal_hash",
-          "type": "byte[32]",
-          "desc": "Hash of the withdrawal request"
+          "type": "byte[32]"
         }
       ],
       "returns": {
@@ -620,24 +574,16 @@
       "desc": "Withdraws funds before the withdrawal timestamp has lapsed, by using the early withdrawal signature provided by Immersve.",
       "args": [
         {
-          "name": "partnerChannel",
-          "type": "string",
-          "desc": "The partner channel associated with the card."
-        },
-        {
-          "name": "card",
-          "type": "address",
-          "desc": "The address of the card."
+          "name": "cardFund",
+          "type": "address"
         },
         {
           "name": "withdrawal_hash",
-          "type": "byte[32]",
-          "desc": "The hash of the withdrawal."
+          "type": "byte[32]"
         },
         {
           "name": "early_withdrawal_sig",
-          "type": "byte[32]",
-          "desc": "The signature for early withdrawal."
+          "type": "byte[32]"
         }
       ],
       "returns": {
@@ -667,8 +613,13 @@
       "args": [
         {
           "name": "partnerChannel",
-          "type": "string",
+          "type": "address",
           "desc": "Partner Channel"
+        },
+        {
+          "name": "partnerChannelName",
+          "type": "string",
+          "desc": "Partner Channel Name"
         }
       ],
       "desc": "Partner Channel Created event"
@@ -688,7 +639,7 @@
         },
         {
           "name": "partnerChannel",
-          "type": "string",
+          "type": "address",
           "desc": "Partner Channel"
         }
       ],

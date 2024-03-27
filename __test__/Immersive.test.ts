@@ -21,6 +21,7 @@ describe('Immersve', () => {
     let user2: algosdk.Account;
 
     let fakeUSDC: number;
+    let newPartnerChannel: string;
     let newCardAddress: string;
     let withdrawalRequest: Uint8Array;
 
@@ -224,7 +225,7 @@ describe('Immersve', () => {
         const { algod } = fixture.context;
 
         // 2500 per box, 400 per byte: prefix + partner name + addr length
-        const boxCost = 2500 + 400 * (1 + 2 + 'Pera'.length + 32);
+        const boxCost = 2500 + 400 * (3 + 32 + 'Pera'.length);
 
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: immersve.addr,
@@ -233,10 +234,13 @@ describe('Immersve', () => {
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
-        await appClient.partnerChannelCreate(
-            { mbr, partnerChannel: 'Pera' },
+        const result = await appClient.partnerChannelCreate(
+            { mbr, partnerChannelName: 'Pera' },
             { sendParams: { fee: microAlgos(5_000), populateAppCallResources: true } }
         );
+        expect(result.return).toBeDefined();
+
+        newPartnerChannel = result.return!;
     });
 
     test('Create new card without assets', async () => {
@@ -244,7 +248,7 @@ describe('Immersve', () => {
         const { algod } = fixture.context;
 
         // 2500 per box, 400 per byte: prefix + partner name + addr length
-        const boxCost = 2500 + 400 * (3 + 4 + 'Pera'.length + 32 + 32);
+        const boxCost = 2500 + 400 * (3 + 32 + 32 + 32 + 32 + 8);
 
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: user2.addr,
@@ -255,7 +259,7 @@ describe('Immersve', () => {
         const result = await appClient.cardFundCreate(
             {
                 mbr,
-                partnerChannel: 'Pera',
+                partnerChannel: newPartnerChannel,
                 asset: 0,
             },
             {
@@ -274,9 +278,7 @@ describe('Immersve', () => {
     test('Close card without assets', async () => {
         const result = await appClient.cardFundClose(
             {
-                partnerChannel: 'Pera',
-                cardFundOwner: user2.addr,
-                card: newCardAddress,
+                cardFund: newCardAddress,
             },
             {
                 sendParams: {
@@ -294,7 +296,7 @@ describe('Immersve', () => {
         const { algod } = fixture.context;
 
         // 2500 per box, 400 per byte: prefix + partner name + addr length
-        const boxCost = 2500 + 400 * (3 + 4 + 'Pera'.length + 32 + 32);
+        const boxCost = 2500 + 400 * (3 + 32 + 32 + 32 + 32 + 8);
 
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: user.addr,
@@ -305,7 +307,7 @@ describe('Immersve', () => {
         const result = await appClient.cardFundCreate(
             {
                 mbr,
-                partnerChannel: 'Pera',
+                partnerChannel: newPartnerChannel,
                 asset: fakeUSDC,
             },
             {
@@ -324,7 +326,6 @@ describe('Immersve', () => {
     test('Disable FakeUSDC for card', async () => {
         const result = await appClient.cardFundDisableAsset(
             {
-                partnerChannel: 'Pera',
                 cardFund: newCardAddress,
                 asset: fakeUSDC,
             },
@@ -354,7 +355,6 @@ describe('Immersve', () => {
         const result = await appClient.cardFundEnableAsset(
             {
                 mbr,
-                partnerChannel: 'Pera',
                 cardFund: newCardAddress,
                 asset: fakeUSDC,
             },
@@ -393,7 +393,7 @@ describe('Immersve', () => {
     test('User spends, Immersve debits', async () => {
         const result = await appClient.cardFundDebit(
             {
-                card: newCardAddress,
+                cardFund: newCardAddress,
                 asset: fakeUSDC,
                 amount: 5_000_000,
             },
@@ -425,9 +425,8 @@ describe('Immersve', () => {
     test('Recover Card', async () => {
         const result = await appClient.cardFundRecover(
             {
-                partnerChannel: 'Pera',
-                oldCardHolder: user.addr,
-                newCardHolder: user2.addr,
+                cardFund: newCardAddress,
+                newCardFundHolder: user2.addr,
             },
             {
                 sendParams: {
@@ -443,8 +442,7 @@ describe('Immersve', () => {
     test('User creates withdrawal request', async () => {
         const result = await appClient.optIn.cardFundWithdrawalRequest(
             {
-                partnerChannel: 'Pera',
-                card: newCardAddress,
+                cardFund: newCardAddress,
                 recipient: user2.addr,
                 asset: fakeUSDC,
                 amount: 5_000_000,
@@ -493,8 +491,7 @@ describe('Immersve', () => {
     test('Complete withdrawal request', async () => {
         const result = await appClient.closeOut.cardFundWithdraw(
             {
-                partnerChannel: 'Pera',
-                card: newCardAddress,
+                cardFund: newCardAddress,
                 withdrawal_hash: withdrawalRequest,
             },
             {
@@ -514,7 +511,6 @@ describe('Immersve', () => {
     test('Disable FakeUSDC for card', async () => {
         const result = await appClient.cardFundDisableAsset(
             {
-                partnerChannel: 'Pera',
                 cardFund: newCardAddress,
                 asset: fakeUSDC,
             },
@@ -533,9 +529,7 @@ describe('Immersve', () => {
     test('Close card', async () => {
         const result = await appClient.cardFundClose(
             {
-                partnerChannel: 'Pera',
-                cardFundOwner: user2.addr,
-                card: newCardAddress,
+                cardFund: newCardAddress,
             },
             {
                 sendParams: {
@@ -551,7 +545,7 @@ describe('Immersve', () => {
     test('Close Partner', async () => {
         const result = await appClient.partnerChannelClose(
             {
-                partnerChannel: 'Pera',
+                partnerChannel: newPartnerChannel,
             },
             {
                 sendParams: {
