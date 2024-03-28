@@ -263,6 +263,10 @@
           "name": "amount",
           "type": "uint64",
           "desc": "The amount of the asset to be debited."
+        },
+        {
+          "name": "nonce",
+          "type": "uint64"
         }
       ],
       "returns": {
@@ -286,6 +290,11 @@
               "name": "amount",
               "type": "uint64",
               "desc": "Amount being debited"
+            },
+            {
+              "name": "nonce",
+              "type": "uint64",
+              "desc": "Nonce used"
             }
           ],
           "desc": "Debit event"
@@ -310,6 +319,10 @@
           "name": "amount",
           "type": "uint64",
           "desc": "The amount of the asset to refund."
+        },
+        {
+          "name": "nonce",
+          "type": "uint64"
         }
       ],
       "returns": {
@@ -333,6 +346,11 @@
               "name": "amount",
               "type": "uint64",
               "desc": "Amount being refunded"
+            },
+            {
+              "name": "nonce",
+              "type": "uint64",
+              "desc": "Nonce used"
             }
           ],
           "desc": "Refund event"
@@ -343,6 +361,19 @@
       "name": "getNextSettlementNonce",
       "readonly": true,
       "args": [],
+      "returns": {
+        "type": "uint64"
+      }
+    },
+    {
+      "name": "getNextCardFundNonce",
+      "readonly": true,
+      "args": [
+        {
+          "name": "cardFund",
+          "type": "address"
+        }
+      ],
       "returns": {
         "type": "uint64"
       }
@@ -706,6 +737,11 @@
           "name": "amount",
           "type": "uint64",
           "desc": "Amount being debited"
+        },
+        {
+          "name": "nonce",
+          "type": "uint64",
+          "desc": "Nonce used"
         }
       ],
       "desc": "Debit event"
@@ -727,6 +763,11 @@
           "name": "amount",
           "type": "uint64",
           "desc": "Amount being refunded"
+        },
+        {
+          "name": "nonce",
+          "type": "uint64",
+          "desc": "Nonce used"
         }
       ],
       "desc": "Refund event"

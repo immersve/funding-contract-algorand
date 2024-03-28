@@ -391,11 +391,24 @@ describe('Immersve', () => {
     });
 
     test('User spends, Immersve debits', async () => {
+        const nextNonce = await appClient.getNextCardFundNonce(
+            {
+                cardFund: newCardAddress,
+            },
+            {
+                sendParams: {
+                    // fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
         const result = await appClient.cardFundDebit(
             {
                 cardFund: newCardAddress,
                 asset: fakeUSDC,
                 amount: 5_000_000,
+                nonce: nextNonce.return as bigint,
             },
             {
                 sendParams: {
@@ -492,7 +505,7 @@ describe('Immersve', () => {
         const result = await appClient.closeOut.cardFundWithdraw(
             {
                 cardFund: newCardAddress,
-                withdrawal_hash: withdrawalRequest,
+                withdrawalHash: withdrawalRequest,
             },
             {
                 sender: user2,

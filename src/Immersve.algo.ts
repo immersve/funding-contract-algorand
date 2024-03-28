@@ -163,6 +163,8 @@ export class Master extends Contract.extend(Ownable) {
         asset: AssetID;
         /** Amount being debited */
         amount: uint64;
+        /** Nonce used */
+        nonce: uint64;
     }>();
 
     /**
@@ -175,6 +177,8 @@ export class Master extends Contract.extend(Ownable) {
         asset: AssetID;
         /** Amount being refunded */
         amount: uint64;
+        /** Nonce used */
+        nonce: uint64;
     }>();
 
     SettlementAddressChanged = new EventLogger<{
@@ -590,8 +594,12 @@ export class Master extends Contract.extend(Ownable) {
      * @param asset The asset to be debited.
      * @param amount The amount of the asset to be debited.
      */
-    cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64): void {
+    cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
         this.onlyOwner();
+
+        // Ensure the nonce is correct
+        const nextNonce = this.card_funds(cardFund).value.nonce;
+        assert(nextNonce === nonce);
 
         sendAssetTransfer({
             sender: cardFund,
@@ -604,7 +612,11 @@ export class Master extends Contract.extend(Ownable) {
             card: cardFund,
             asset: asset,
             amount: amount,
+            nonce: nonce,
         });
+
+        // Increment the nonce
+        this.card_funds(cardFund).value.nonce = nextNonce + 1;
     }
 
     /**
@@ -615,8 +627,12 @@ export class Master extends Contract.extend(Ownable) {
      * @param asset - The asset to refund.
      * @param amount - The amount of the asset to refund.
      */
-    cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64): void {
+    cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
         this.onlyOwner();
+
+        // Ensure the nonce is correct
+        const nextNonce = this.card_funds(cardFund).value.nonce;
+        assert(nextNonce === nonce);
 
         sendAssetTransfer({
             sender: this.app.address,
@@ -629,12 +645,21 @@ export class Master extends Contract.extend(Ownable) {
             card: cardFund,
             asset: asset,
             amount: amount,
+            nonce: nonce,
         });
+
+        // Increment the nonce
+        this.card_funds(cardFund).value.nonce = nextNonce + 1;
     }
 
     @abi.readonly
     getNextSettlementNonce(): uint64 {
         return this.settlement_nonce.value;
+    }
+
+    @abi.readonly
+    getNextCardFundNonce(cardFund: Address): uint64 {
+        return this.card_funds(cardFund).value.nonce;
     }
 
     /**
