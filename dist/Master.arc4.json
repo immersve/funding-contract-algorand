@@ -185,7 +185,8 @@
       "args": [
         {
           "name": "cardFund",
-          "type": "address"
+          "type": "address",
+          "desc": "Address to close"
         }
       ],
       "returns": {
@@ -203,7 +204,8 @@
         },
         {
           "name": "newCardFundHolder",
-          "type": "address"
+          "type": "address",
+          "desc": "The address of the new card holder."
         }
       ],
       "returns": {
@@ -296,15 +298,18 @@
       "args": [
         {
           "name": "cardFund",
-          "type": "address"
+          "type": "address",
+          "desc": "The card account to refund the asset to."
         },
         {
           "name": "asset",
-          "type": "uint64"
+          "type": "uint64",
+          "desc": "The asset to refund."
         },
         {
           "name": "amount",
-          "type": "uint64"
+          "type": "uint64",
+          "desc": "The amount of the asset to refund."
         }
       ],
       "returns": {
@@ -541,11 +546,13 @@
       "args": [
         {
           "name": "cardFund",
-          "type": "address"
+          "type": "address",
+          "desc": "Address to withdraw from"
         },
         {
           "name": "withdrawal_hash",
-          "type": "byte[32]"
+          "type": "byte[32]",
+          "desc": "Hash of the withdrawal request"
         }
       ],
       "returns": {
@@ -558,11 +565,13 @@
       "args": [
         {
           "name": "cardFund",
-          "type": "address"
+          "type": "address",
+          "desc": "Address to withdraw from"
         },
         {
           "name": "withdrawal_hash",
-          "type": "byte[32]"
+          "type": "byte[32]",
+          "desc": "Hash of the withdrawal request"
         }
       ],
       "returns": {
@@ -575,15 +584,18 @@
       "args": [
         {
           "name": "cardFund",
-          "type": "address"
+          "type": "address",
+          "desc": "The address of the card."
         },
         {
           "name": "withdrawal_hash",
-          "type": "byte[32]"
+          "type": "byte[32]",
+          "desc": "The hash of the withdrawal."
         },
         {
           "name": "early_withdrawal_sig",
-          "type": "byte[32]"
+          "type": "byte[32]",
+          "desc": "The signature for early withdrawal."
         }
       ],
       "returns": {

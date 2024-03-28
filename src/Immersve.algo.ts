@@ -451,9 +451,6 @@ export class Master extends Contract.extend(Ownable) {
         verifyPayTxn(mbr, {
             receiver: this.app.address,
             amount: globals.minBalance + assetMbr + boxCost,
-            // amount: {
-            //     greaterThanEqualTo: globals.minBalance + assetMbr + boxCost,
-            // },
         });
 
         // Create a new account
@@ -495,7 +492,7 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Close account. This permanently removes the rekey and deletes the account from the ledger
-     * @param card Address to close
+     * @param cardFund Address to close
      */
     cardFundClose(cardFund: Address): void {
         assert(this.isOwner() || this.isCardFundOwner(cardFund));
@@ -527,7 +524,7 @@ export class Master extends Contract.extend(Ownable) {
      * Only the owner of the contract can perform this operation.
      *
      * @param cardFund - The card fund to recover.
-     * @param newCardHolder - The address of the new card holder.
+     * @param newCardFundHolder - The address of the new card holder.
      */
     cardFundRecover(cardFund: Address, newCardFundHolder: Address): void {
         this.onlyOwner();
@@ -552,9 +549,6 @@ export class Master extends Contract.extend(Ownable) {
         verifyPayTxn(mbr, {
             receiver: this.app.address,
             amount: globals.assetOptInMinBalance,
-            // amount: {
-            //     greaterThanEqualTo: globals.assetOptInMinBalance,
-            // },
         });
 
         sendAssetTransfer({
@@ -617,7 +611,7 @@ export class Master extends Contract.extend(Ownable) {
      * Refunds a specified amount of an asset to a card account.
      * Only the owner of the contract can perform this operation.
      *
-     * @param card - The card account to refund the asset to.
+     * @param cardFund - The card account to refund the asset to.
      * @param asset - The asset to refund.
      * @param amount - The amount of the asset to refund.
      */
@@ -707,9 +701,6 @@ export class Master extends Contract.extend(Ownable) {
         verifyPayTxn(mbr, {
             receiver: this.app.address,
             amount: globals.assetOptInMinBalance,
-            // amount: {
-            //     greaterThanEqualTo: globals.assetOptInMinBalance,
-            // },
         });
 
         sendPayment({
@@ -771,7 +762,7 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Allows the Card Holder (or contract owner) to cancel a withdrawal request
-     * @param card Address to withdraw from
+     * @param cardFund Address to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
     cardFundWithdrawalCancel(cardFund: Address, withdrawal_hash: bytes32): void {
@@ -782,7 +773,7 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Allows the Card Holder to send an amount of assets from the account
-     * @param card Address to withdraw from
+     * @param cardFund Address to withdraw from
      * @param withdrawal_hash Hash of the withdrawal request
      */
     @allow.call('NoOp')
@@ -803,7 +794,7 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Withdraws funds before the withdrawal timestamp has lapsed, by using the early withdrawal signature provided by Immersve.
-     * @param card - The address of the card.
+     * @param cardFund - The address of the card.
      * @param withdrawal_hash - The hash of the withdrawal.
      * @param early_withdrawal_sig - The signature for early withdrawal.
      */
