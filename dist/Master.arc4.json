@@ -332,6 +332,30 @@
       ]
     },
     {
+      "name": "getRefundAddress",
+      "desc": "Retrieves the refund address.",
+      "readonly": true,
+      "args": [],
+      "returns": {
+        "type": "address",
+        "desc": "The refund address."
+      }
+    },
+    {
+      "name": "setRefundAddress",
+      "desc": "Sets the refund address.Only the owner of the contract can call this method.",
+      "args": [
+        {
+          "name": "newRefundAddress",
+          "type": "address",
+          "desc": "The new refund address to be set."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "cardFundRefund",
       "desc": "Refunds a specified amount of an asset to a card account.Only the owner of the contract can perform this operation.",
       "args": [

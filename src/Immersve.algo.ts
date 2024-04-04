@@ -112,6 +112,9 @@ export class Master extends Contract.extend(Ownable) {
     // Settlement address
     settlement_address = BoxMap<AssetID, Address>({ prefix: 'sa' });
 
+    // Refund address
+    refund_address = GlobalStateKey<Address>({ key: 'ra' });
+
     // ========== Events ==========
     /**
      * Partner Channel Created event
@@ -655,6 +658,28 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
+     * Retrieves the refund address.
+     *
+     * @returns The refund address.
+     */
+    @abi.readonly
+    getRefundAddress(): Address {
+        return this.refund_address.value;
+    }
+
+    /**
+     * Sets the refund address.
+     * Only the owner of the contract can call this method.
+     *
+     * @param newRefundAddress The new refund address to be set.
+     */
+    setRefundAddress(newRefundAddress: Address): void {
+        this.onlyOwner();
+
+        this.refund_address.value = newRefundAddress;
+    }
+
+    /**
      * Refunds a specified amount of an asset to a card account.
      * Only the owner of the contract can perform this operation.
      *
@@ -663,7 +688,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param amount - The amount of the asset to refund.
      */
     cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
-        this.onlyOwner();
+        assert(this.txn.sender === this.refund_address.value, 'Only the refund address can call this function');
 
         // Ensure the nonce is correct
         const nextNonce = this.card_funds(cardFund).value.nonce;
