@@ -166,7 +166,7 @@ transferOwnership:
 deploy:
 	proto 0 0
 
-	// src/Immersve.algo.ts:52
+	// src/Immersve.algo.ts:54
 	// this._transferOwnership(this.txn.sender)
 	txn Sender
 	callsub _transferOwnership
@@ -183,7 +183,7 @@ deploy:
 update:
 	proto 0 0
 
-	// src/Immersve.algo.ts:57
+	// src/Immersve.algo.ts:59
 	// assert(this.txn.sender === this.app.creator)
 	txn Sender
 	txna Applications 0
@@ -204,7 +204,7 @@ update:
 destroy:
 	proto 0 0
 
-	// src/Immersve.algo.ts:62
+	// src/Immersve.algo.ts:64
 	// assert(this.txn.sender === this.app.creator)
 	txn Sender
 	txna Applications 0

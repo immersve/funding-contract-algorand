@@ -214,22 +214,39 @@
     },
     {
       "name": "assetAllowlistAdd",
-      "desc": "Allows the master contract to flag intent of accepting an asset.This can be considered the whitelists whitelist.",
+      "desc": "Allows the master contract to flag intent of accepting an asset.",
       "args": [
         {
           "name": "mbr",
           "type": "pay",
-          "desc": "Payment transaction of minimum balance requirement"
+          "desc": "Payment transaction of minimum balance requirement."
         },
         {
           "name": "asset",
           "type": "uint64",
           "desc": "The AssetID of the asset being transferred."
+        },
+        {
+          "name": "settlementAddress",
+          "type": "address"
         }
       ],
       "returns": {
         "type": "void"
-      }
+      },
+      "events": [
+        {
+          "name": "AssetAllowlistAdded",
+          "args": [
+            {
+              "name": "asset",
+              "type": "uint64",
+              "desc": "Asset added to allowlist"
+            }
+          ],
+          "desc": "Asset Allowlist Added event"
+        }
+      ]
     },
     {
       "name": "assetAllowlistRemove",
@@ -243,7 +260,20 @@
       ],
       "returns": {
         "type": "void"
-      }
+      },
+      "events": [
+        {
+          "name": "AssetAllowlistRemoved",
+          "args": [
+            {
+              "name": "asset",
+              "type": "uint64",
+              "desc": "Asset removed from allowlist"
+            }
+          ],
+          "desc": "Asset Allowlist Removed event"
+        }
+      ]
     },
     {
       "name": "cardFundDebit",
@@ -359,56 +389,64 @@
     },
     {
       "name": "getNextSettlementNonce",
+      "desc": "Retrieves the next available nonce for settlements.",
       "readonly": true,
       "args": [],
       "returns": {
-        "type": "uint64"
+        "type": "uint64",
+        "desc": "The settlement nonce."
       }
     },
     {
       "name": "getNextCardFundNonce",
+      "desc": "Retrieves the next available nonce for the card fund.",
       "readonly": true,
       "args": [
         {
           "name": "cardFund",
-          "type": "address"
+          "type": "address",
+          "desc": "The card fund address."
         }
       ],
       "returns": {
-        "type": "uint64"
+        "type": "uint64",
+        "desc": "The nonce for the card fund."
+      }
+    },
+    {
+      "name": "getSettlementAddress",
+      "desc": "Retrieves the settlement address for the specified asset.",
+      "readonly": true,
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "The ID of the asset."
+        }
+      ],
+      "returns": {
+        "type": "address",
+        "desc": "The settlement address for the asset."
       }
     },
     {
       "name": "setSettlementAddress",
-      "desc": "Sets the settlement address to a new value.",
+      "desc": "Sets the settlement address for a given settlement asset.Only the owner of the contract can call this method.",
       "args": [
+        {
+          "name": "settlementAsset",
+          "type": "uint64",
+          "desc": "The ID of the settlement asset."
+        },
         {
           "name": "newSettlementAddress",
           "type": "address",
-          "desc": "The new settlement address to set."
+          "desc": "The new settlement address to be set."
         }
       ],
       "returns": {
         "type": "void"
-      },
-      "events": [
-        {
-          "name": "SettlementAddressChanged",
-          "args": [
-            {
-              "name": "oldSettlementAddress",
-              "type": "address",
-              "desc": "Old settlement address"
-            },
-            {
-              "name": "newSettlementAddress",
-              "type": "address",
-              "desc": "New settlement address"
-            }
-          ],
-          "desc": ""
-        }
-      ]
+      }
     },
     {
       "name": "settle",
@@ -719,6 +757,28 @@
         }
       ],
       "desc": "Card Fund Asset Disabled event"
+    },
+    {
+      "name": "AssetAllowlistAdded",
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset added to allowlist"
+        }
+      ],
+      "desc": "Asset Allowlist Added event"
+    },
+    {
+      "name": "AssetAllowlistRemoved",
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset removed from allowlist"
+        }
+      ],
+      "desc": "Asset Allowlist Removed event"
     },
     {
       "name": "Debit",

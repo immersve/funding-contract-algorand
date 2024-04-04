@@ -26,6 +26,8 @@
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 
+const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (8 + 32);
+
 // CardFundData
 type CardFundData = {
     partnerChannel: Address;
@@ -108,7 +110,7 @@ export class Master extends Contract.extend(Ownable) {
     settlement_nonce = GlobalStateKey<uint64>({ key: 'sn' });
 
     // Settlement address
-    settlement_address = GlobalStateKey<Address>({ key: 'sa' });
+    settlement_address = BoxMap<AssetID, Address>({ prefix: 'sa' });
 
     // ========== Events ==========
     /**
@@ -150,6 +152,22 @@ export class Master extends Contract.extend(Ownable) {
         /** Card Fund */
         cardFund: Address;
         /** Asset */
+        asset: AssetID;
+    }>();
+
+    /**
+     * Asset Allowlist Added event
+     */
+    AssetAllowlistAdded = new EventLogger<{
+        /** Asset added to allowlist */
+        asset: AssetID;
+    }>();
+
+    /**
+     * Asset Allowlist Removed event
+     */
+    AssetAllowlistRemoved = new EventLogger<{
+        /** Asset removed from allowlist */
         asset: AssetID;
     }>();
 
@@ -304,6 +322,18 @@ export class Master extends Contract.extend(Ownable) {
             asset: withdrawal.asset,
             amount: withdrawal.amount,
             nonce: withdrawal.nonce,
+        });
+    }
+
+    private updateSettlementAddress(asset: AssetID, newSettlementAddress: Address): void {
+        const oldSettlementAddress = this.settlement_address(asset).exists
+            ? this.settlement_address(asset).value
+            : globals.zeroAddress;
+        this.settlement_address(asset).value = newSettlementAddress;
+
+        this.SettlementAddressChanged.log({
+            oldSettlementAddress: oldSettlementAddress,
+            newSettlementAddress: newSettlementAddress,
         });
     }
 
@@ -542,17 +572,16 @@ export class Master extends Contract.extend(Ownable) {
 
     /**
      * Allows the master contract to flag intent of accepting an asset.
-     * This can be considered the whitelists whitelist.
      *
-     * @param mbr - Payment transaction of minimum balance requirement
-     * @param asset - The AssetID of the asset being transferred.
+     * @param mbr Payment transaction of minimum balance requirement.
+     * @param asset The AssetID of the asset being transferred.
      */
-    assetAllowlistAdd(mbr: PayTxn, asset: AssetID): void {
+    assetAllowlistAdd(mbr: PayTxn, asset: AssetID, settlementAddress: Address): void {
         this.onlyOwner();
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.assetOptInMinBalance,
+            amount: globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST,
         });
 
         sendAssetTransfer({
@@ -561,6 +590,10 @@ export class Master extends Contract.extend(Ownable) {
             xferAsset: asset,
             assetAmount: 0,
         });
+
+        this.AssetAllowlistAdded.log({ asset: asset });
+
+        this.updateSettlementAddress(asset, settlementAddress);
     }
 
     /**
@@ -584,6 +617,8 @@ export class Master extends Contract.extend(Ownable) {
             receiver: this.txn.sender,
             amount: globals.assetOptInMinBalance,
         });
+
+        this.AssetAllowlistRemoved.log({ asset: asset });
     }
 
     /**
@@ -652,33 +687,49 @@ export class Master extends Contract.extend(Ownable) {
         this.card_funds(cardFund).value.nonce = nextNonce + 1;
     }
 
+    /**
+     * Retrieves the next available nonce for settlements.
+     *
+     * @returns The settlement nonce.
+     */
     @abi.readonly
     getNextSettlementNonce(): uint64 {
         return this.settlement_nonce.value;
     }
 
+    /**
+     * Retrieves the next available nonce for the card fund.
+     *
+     * @param cardFund The card fund address.
+     * @returns The nonce for the card fund.
+     */
     @abi.readonly
     getNextCardFundNonce(cardFund: Address): uint64 {
         return this.card_funds(cardFund).value.nonce;
     }
 
     /**
-     * Sets the settlement address to a new value.
+     * Retrieves the settlement address for the specified asset.
      *
-     * @param newSettlementAddress - The new settlement address to set.
+     * @param asset The ID of the asset.
+     * @returns The settlement address for the asset.
      */
-    setSettlementAddress(newSettlementAddress: Address): void {
+    @abi.readonly
+    getSettlementAddress(asset: AssetID): Address {
+        return this.settlement_address(asset).value;
+    }
+
+    /**
+     * Sets the settlement address for a given settlement asset.
+     * Only the owner of the contract can call this method.
+     *
+     * @param settlementAsset The ID of the settlement asset.
+     * @param newSettlementAddress The new settlement address to be set.
+     */
+    setSettlementAddress(settlementAsset: AssetID, newSettlementAddress: Address): void {
         this.onlyOwner();
 
-        const oldSettlementAddress = this.settlement_address.exists
-            ? this.settlement_address.value
-            : globals.zeroAddress;
-        this.settlement_address.value = newSettlementAddress;
-
-        this.SettlementAddressChanged.log({
-            oldSettlementAddress: oldSettlementAddress,
-            newSettlementAddress: newSettlementAddress,
-        });
+        this.updateSettlementAddress(settlementAsset, newSettlementAddress);
     }
 
     /**
@@ -697,13 +748,13 @@ export class Master extends Contract.extend(Ownable) {
 
         sendAssetTransfer({
             sender: this.app.address,
-            assetReceiver: this.settlement_address.value,
+            assetReceiver: this.settlement_address(asset).value,
             xferAsset: asset,
             assetAmount: amount,
         });
 
         this.Settlement.log({
-            recipient: this.settlement_address.value,
+            recipient: this.settlement_address(asset).value,
             asset: asset,
             amount: amount,
             nonce: nonce,
