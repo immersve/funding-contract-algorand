@@ -26,7 +26,8 @@
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 
-const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (8 + 32);
+// Box Cost: 2500 + 400 * (Prefix + AssetID + Address)
+const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (2 + 8 + 32);
 
 // CardFundData
 type CardFundData = {
@@ -616,9 +617,12 @@ export class Master extends Contract.extend(Ownable) {
             assetAmount: 0,
         });
 
+        // Delete the settlement address, freeing up MBR
+        this.settlement_address(asset).delete();
+
         sendPayment({
             receiver: this.txn.sender,
-            amount: globals.assetOptInMinBalance,
+            amount: globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST,
         });
 
         this.AssetAllowlistRemoved.log({ asset: asset });

@@ -177,22 +177,6 @@ describe('Immersve', () => {
         expect(result.confirmation!.poolError).toBe('');
     });
 
-    test('Set settlement address', async () => {
-        const result = await appClient.setSettlementAddress(
-            {
-                newSettlementAddress: circle.addr,
-            },
-            {
-                sendParams: {
-                    fee: microAlgos(1_000),
-                    populateAppCallResources: true,
-                },
-            }
-        );
-
-        expect(result.confirmation!.poolError).toBe('');
-    });
-
     test('Allowlist Add FakeUSDC', async () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
@@ -200,7 +184,7 @@ describe('Immersve', () => {
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: immersve.addr,
             to: appAddress,
-            amount: 100_000,
+            amount: 100_000 + (2_500 + 400 * (2 + 8 + 32)), // Asset MBR + Box Cost
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
@@ -208,6 +192,7 @@ describe('Immersve', () => {
             {
                 mbr,
                 asset: fakeUSDC,
+                settlementAddress: immersve.addr,
             },
             {
                 sendParams: {
