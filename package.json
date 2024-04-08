@@ -27,10 +27,11 @@
     "@algorandfoundation/algokit-client-generator": "^3.0.1",
     "@algorandfoundation/algokit-subscriber": "^1.2.0-beta.2",
     "@algorandfoundation/algokit-utils": "^5.8.0",
-    "@algorandfoundation/tealscript": "^0.88.1",
+    "@algorandfoundation/tealscript": "^0.90.0",
     "@types/websocket": "^1.0.10",
     "algo-msgpack-with-bigint": "^2.1.1",
     "algosdk": "^2.7.0",
+    "ts-jest": "^29.1.2",
     "websocket": "^1.0.34"
   }
 }
