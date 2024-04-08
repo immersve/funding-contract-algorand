@@ -1,17 +1,16 @@
 {
-  "name": "Immersve Concept",
+  "name": "Immersve",
+  "license": "MIT",
   "module": "index.ts",
   "type": "module",
   "scripts": {
     "clean": "rm -rf {dist,client}/*",
     "compile-contracts": "tealscript src/*.algo.ts dist/",
     "generate-clients": "algokit generate client dist/ --language typescript  --output client/{contract_name}Client.ts",
-    "build": "bun run clean && bun run compile-contracts && bun run generate-clients",
-    "test": "bun run build && bun test __test__/Immersive.test.ts --timeout 60000",
-    "test:bugged": "bun run build:bugged && bun test __test__/BuggedImmersive.test.ts"
+    "build": "yarn run clean && yarn run compile-contracts && yarn run generate-clients",
+    "test": "yarn run build && yarn test __test__/Immersive.test.ts --timeout 60000"
   },
   "devDependencies": {
-    "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^7.0.1",
     "@typescript-eslint/parser": "^7.0.1",
     "eslint": "^8.56.0",
