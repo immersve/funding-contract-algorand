@@ -406,6 +406,25 @@ describe('Immersve', () => {
         expect(result.confirmation!.poolError).toBeDefined();
     });
 
+    test('Get CardFundData', async () => {
+        const result = await appClient.getCardFundData(
+            {
+                cardFund: newCardAddress,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.return?.[0]).toBe(newPartnerChannel);
+        expect(result.return?.[1]).toBe(user.addr);
+        expect(result.return?.[2]).toBe(newCardAddress);
+        expect(result.return?.[3]).toEqual(BigInt(1));
+    });
+
     test('Update Contract', async () => {
         const result = await appClient.update.update(
             {},

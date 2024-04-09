@@ -738,6 +738,17 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
+     * Retrieves the card fund data for a given card fund address.
+     *
+     * @param cardFund The address of the card fund.
+     * @returns The card fund data.
+     */
+    @abi.readonly
+    getCardFundData(cardFund: Address): CardFundData {
+        return this.card_funds(cardFund).value;
+    }
+
+    /**
      * Retrieves the settlement address for the specified asset.
      *
      * @param asset The ID of the asset.

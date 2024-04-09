@@ -438,6 +438,22 @@
       }
     },
     {
+      "name": "getCardFundData",
+      "desc": "Retrieves the card fund data for a given card fund address.",
+      "readonly": true,
+      "args": [
+        {
+          "name": "cardFund",
+          "type": "address",
+          "desc": "The address of the card fund."
+        }
+      ],
+      "returns": {
+        "type": "(address,address,address,uint64)",
+        "desc": "The card fund data."
+      }
+    },
+    {
       "name": "getSettlementAddress",
       "desc": "Retrieves the settlement address for the specified asset.",
       "readonly": true,
