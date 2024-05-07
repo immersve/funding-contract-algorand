@@ -50,7 +50,7 @@ export class Ownable extends Contract {
      * Assert the transaction sender is the owner of the contract.
      */
     protected onlyOwner(): void {
-        assert(this.txn.sender === this._owner.value);
+        assert(this.txn.sender === this._owner.value, 'SENDER_NOT_ALLOWED');
     }
 
     /**
@@ -90,7 +90,7 @@ export class Ownable extends Contract {
      * @param newOwner The address of the new owner.
      */
     transferOwnership(newOwner: Address): void {
-        assert(this.isOwner());
+        this.onlyOwner();
 
         this._transferOwnership(newOwner);
     }

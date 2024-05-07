@@ -57,12 +57,12 @@ class Placeholder extends Contract.extend(Ownable) {
 
     @allow.call('UpdateApplication')
     update(): void {
-        assert(this.txn.sender === this.app.creator);
+        assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED');
     }
 
     @allow.call('DeleteApplication')
     destroy(): void {
-        assert(this.txn.sender === this.app.creator);
+        assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED');
     }
 }
 
@@ -265,6 +265,7 @@ export class Master extends Contract.extend(Ownable) {
      * @returns True if the sender is the Card Holder of the card
      */
     private isCardFundOwner(cardFund: Address): boolean {
+        assert(this.card_funds(cardFund).exists, 'CARD_FUND_NOT_FOUND');
         return this.card_funds(cardFund).value.owner === this.txn.sender;
     }
 
@@ -275,7 +276,7 @@ export class Master extends Contract.extend(Ownable) {
      */
     private cardFundAssetOptIn(cardFund: Address, asset: AssetID): void {
         // Only proceed if the master allowlist accepts it
-        assert(this.app.address.isOptedInToAsset(asset));
+        assert(this.app.address.isOptedInToAsset(asset), 'ASSET_NOT_OPTED_IN');
 
         sendAssetTransfer({
             sender: cardFund,
@@ -368,9 +369,9 @@ export class Master extends Contract.extend(Ownable) {
         this.onlyOwner();
 
         // There must not be any active card fund
-        assert(!this.card_funds_active_count.value);
+        assert(!this.card_funds_active_count.value, 'CARD_FUNDS_STILL_ACTIVE');
         // There must not be any active partner channels
-        assert(!this.partner_channels_active_count.value);
+        assert(!this.partner_channels_active_count.value, 'PARTNER_CHANNELS_STILL_ACTIVE');
 
         sendPayment({
             receiver: this.app.address,
@@ -475,7 +476,7 @@ export class Master extends Contract.extend(Ownable) {
      * @returns Newly generated account used by their card
      */
     cardFundCreate(mbr: PayTxn, partnerChannel: Address, asset: AssetID): Address {
-        assert(this.partner_channels(partnerChannel).exists);
+        assert(this.partner_channels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
 
         const cardFundData: CardFundData = {
             partnerChannel: partnerChannel,
@@ -533,7 +534,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param cardFund Address to close
      */
     cardFundClose(cardFund: Address): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund));
+        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         sendPayment({
             sender: cardFund,
@@ -641,7 +642,7 @@ export class Master extends Contract.extend(Ownable) {
 
         // Ensure the nonce is correct
         const nextNonce = this.card_funds(cardFund).value.nonce;
-        assert(nextNonce === nonce);
+        assert(nextNonce === nonce, 'NONCE_INVALID');
 
         sendAssetTransfer({
             sender: cardFund,
@@ -692,11 +693,11 @@ export class Master extends Contract.extend(Ownable) {
      * @param amount - The amount of the asset to refund.
      */
     cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
-        assert(this.txn.sender === this.refund_address.value, 'Only the refund address can call this function');
+        assert(this.txn.sender === this.refund_address.value, 'SENDER_NOT_ALLOWED');
 
         // Ensure the nonce is correct
         const nextNonce = this.card_funds(cardFund).value.nonce;
-        assert(nextNonce === nonce);
+        assert(nextNonce === nonce, 'NONCE_INVALID');
 
         sendAssetTransfer({
             sender: this.app.address,
@@ -784,7 +785,7 @@ export class Master extends Contract.extend(Ownable) {
         this.onlyOwner();
 
         // Ensure the nonce is correct
-        assert(this.settlement_nonce.value === nonce);
+        assert(this.settlement_nonce.value === nonce, 'NONCE_INVALID');
 
         sendAssetTransfer({
             sender: this.app.address,
@@ -812,7 +813,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param asset Asset to add
      */
     cardFundEnableAsset(mbr: PayTxn, cardFund: Address, asset: AssetID): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund));
+        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
@@ -834,7 +835,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param asset - The ID of the asset to be removed.
      */
     cardFundDisableAsset(cardFund: Address, asset: AssetID): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund));
+        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         this.cardFundAssetCloseOut(cardFund, asset);
     }
@@ -849,7 +850,7 @@ export class Master extends Contract.extend(Ownable) {
     @allow.call('NoOp')
     @allow.call('OptIn')
     cardFundWithdrawalRequest(cardFund: Address, recipient: Address, asset: AssetID, amount: uint64): bytes32 {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund));
+        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         const withdrawal: WithdrawalRequest = {
             cardFund: cardFund,
@@ -882,7 +883,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param withdrawal_hash Hash of the withdrawal request
      */
     cardFundWithdrawalCancel(cardFund: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund));
+        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
@@ -895,11 +896,11 @@ export class Master extends Contract.extend(Ownable) {
     @allow.call('NoOp')
     @allow.call('CloseOut')
     cardFundWithdraw(cardFund: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund));
+        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
-        assert(globals.latestTimestamp >= withdrawal.timestamp || this.isOwner());
+        assert(globals.latestTimestamp >= withdrawal.timestamp || this.isOwner(), 'WITHDRAWAL_TIME_INVALID');
 
         // Issue the withdrawal
         this.withdrawFunds(withdrawal);
@@ -915,7 +916,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param early_withdrawal_sig - The signature for early withdrawal.
      */
     cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes32): void {
-        assert(this.isCardFundOwner(cardFund));
+        assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
 
@@ -927,7 +928,7 @@ export class Master extends Contract.extend(Ownable) {
                 increaseOpcodeBudget();
             }
 
-            assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value));
+            assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value), 'SIGNATURE_INVALID');
         }
 
         // Issue the withdrawal
