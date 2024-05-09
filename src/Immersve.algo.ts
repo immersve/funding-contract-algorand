@@ -928,7 +928,10 @@ export class Master extends Contract.extend(Ownable) {
                 increaseOpcodeBudget();
             }
 
-            assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value), 'SIGNATURE_INVALID');
+            assert(
+                ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value),
+                'SIGNATURE_INVALID'
+            );
         }
 
         // Issue the withdrawal
