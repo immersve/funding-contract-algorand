@@ -25,6 +25,69 @@
       }
     },
     {
+      "name": "pauser",
+      "desc": "@noticeReturns current pauser@returnPauser's address",
+      "args": [],
+      "returns": {
+        "type": "address"
+      }
+    },
+    {
+      "name": "pause",
+      "desc": "@devcalled by the owner to pause, triggers stopped state",
+      "args": [],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "Pause",
+          "args": [],
+          "desc": ""
+        }
+      ]
+    },
+    {
+      "name": "unpause",
+      "desc": "@devcalled by the owner to unpause, returns to normal state",
+      "args": [],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "Unpause",
+          "args": [],
+          "desc": ""
+        }
+      ]
+    },
+    {
+      "name": "updatePauser",
+      "desc": "@devupdate the pauser role",
+      "args": [
+        {
+          "name": "_newPauser",
+          "type": "address"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "PauserChanged",
+          "args": [
+            {
+              "name": "newAddress",
+              "type": "address"
+            }
+          ],
+          "desc": ""
+        }
+      ]
+    },
+    {
       "name": "deploy",
       "args": [],
       "returns": {
@@ -62,6 +125,26 @@
         }
       ],
       "desc": "Event emitted when ownership of the contract is transferred."
+    },
+    {
+      "name": "Pause",
+      "args": [],
+      "desc": ""
+    },
+    {
+      "name": "Unpause",
+      "args": [],
+      "desc": ""
+    },
+    {
+      "name": "PauserChanged",
+      "args": [
+        {
+          "name": "newAddress",
+          "type": "address"
+        }
+      ],
+      "desc": ""
     }
   ]
 }

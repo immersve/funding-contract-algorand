@@ -25,9 +25,7 @@
 /* eslint-disable camelcase */
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
-
-// Box Cost: 2500 + 400 * (Prefix + AssetID + Address)
-const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (2 + 8 + 32);
+import { Pausable } from './roles/Pausable.algo';
 
 // CardFundData
 type CardFundData = {
@@ -48,11 +46,12 @@ type WithdrawalRequest = {
 };
 
 // eslint-disable-next-line no-unused-vars
-class Placeholder extends Contract.extend(Ownable) {
+class Placeholder extends Contract.extend(Ownable, Pausable) {
     // Updatable and destroyable placeholder contract
     @allow.create('NoOp')
     deploy(): void {
         this._transferOwnership(this.txn.sender);
+        this._pauser.value = this.txn.sender;
     }
 
     @allow.call('UpdateApplication')
@@ -83,7 +82,7 @@ class ControlledAddress extends Contract {
     }
 }
 
-export class Master extends Contract.extend(Ownable) {
+export class Master extends Contract.extend(Ownable, Pausable) {
     // ========== Storage ==========
     // Card Funds
     card_funds = BoxMap<Address, CardFundData>({ prefix: 'cf' });
@@ -187,6 +186,8 @@ export class Master extends Contract.extend(Ownable) {
         amount: uint64;
         /** Nonce used */
         nonce: uint64;
+        /** Transaction reference */
+        reference: string;
     }>();
 
     /**
@@ -303,7 +304,7 @@ export class Master extends Contract.extend(Ownable) {
         sendPayment({
             sender: cardFund,
             receiver: this.txn.sender,
-            amount: globals.assetOptInMinBalance,
+            amount: this.getCardFundAssetMbr(),
         });
 
         this.CardFundAssetDisabled.log({
@@ -349,6 +350,7 @@ export class Master extends Contract.extend(Ownable) {
     @allow.create('NoOp')
     deploy(owner: Address): Address {
         this._transferOwnership(owner);
+        this._pauser.value = this.txn.sender;
 
         return this.app.address;
     }
@@ -402,6 +404,16 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
+     * Retrieves the minimum balance requirement for creating a partner channel account.
+     * @param partnerChannelName - The name of the partner channel.
+     * @returns The minimum balance requirement for creating a partner channel account.
+     */
+    getPartnerChannelMbr(partnerChannelName: string): uint64 {
+        const boxCost = 2500 + 400 * (3 + 32 + len(partnerChannelName));
+        return globals.minBalance + globals.minBalance + boxCost;
+    }
+
+    /**
      * Creates a partner channel account and associates it with the provided partner channel name.
      * Only the owner of the contract can call this function.
      *
@@ -410,11 +422,9 @@ export class Master extends Contract.extend(Ownable) {
      * @returns The address of the newly created partner channel account.
      */
     partnerChannelCreate(mbr: PayTxn, partnerChannelName: string): Address {
-        const boxCost = 2500 + 400 * (3 + 32 + len(partnerChannelName));
-
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.minBalance + globals.assetOptInMinBalance + boxCost,
+            amount: this.getPartnerChannelMbr(partnerChannelName),
         });
 
         // Create a new account
@@ -469,6 +479,19 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
+     * Retrieves the minimum balance requirement for creating a card fund account.
+     * @param asset Asset to opt-in to. 0 = No asset opt-in
+     * @returns Minimum balance requirement for creating a card fund account
+     */
+    getCardFundMbr(asset: AssetID): uint64 {
+        // TODO: Double check size requirement is accurate. The prefix doesn't seem right.
+        // Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce))
+        const boxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8));
+        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
+        return globals.minBalance + assetMbr + boxCost;
+    }
+
+    /**
      * Create account. This generates a brand new account and funds the minimum balance requirement
      * @param mbr Payment transaction of minimum balance requirement
      * @param partnerChannel Funding Channel name
@@ -484,12 +507,10 @@ export class Master extends Contract.extend(Ownable) {
             address: globals.zeroAddress,
             nonce: 0,
         };
-        const boxCost = 2500 + 400 * (3 + 32 + len(cardFundData));
-        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.minBalance + assetMbr + boxCost,
+            amount: this.getCardFundMbr(asset),
         });
 
         // Create a new account
@@ -503,6 +524,7 @@ export class Master extends Contract.extend(Ownable) {
         cardFundData.address = cardFundAddr;
 
         // Fund the account with a minimum balance
+        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
         sendPayment({
             receiver: cardFundAddr,
             amount: globals.minBalance + assetMbr,
@@ -544,7 +566,7 @@ export class Master extends Contract.extend(Ownable) {
         });
 
         const cardFundSize = this.card_funds(cardFund).size;
-        const boxCost = 2500 + 400 * (1 + cardFundSize + 32);
+        const boxCost = 2500 + 400 * (1 + 32 + cardFundSize);
 
         sendPayment({
             receiver: this.txn.sender,
@@ -576,6 +598,16 @@ export class Master extends Contract.extend(Ownable) {
     }
 
     /**
+     * Retrieves the minimum balance requirement for adding an asset to the allowlist.
+     * @returns Minimum balance requirement for adding an asset to the allowlist
+     */
+    getAssetAllowlistMbr(): uint64 {
+        // Box Cost: 2500 + 400 * (Prefix + AssetID + Address)
+        const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (2 + 8 + 32);
+        return globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST;
+    }
+
+    /**
      * Allows the master contract to flag intent of accepting an asset.
      *
      * @param mbr Payment transaction of minimum balance requirement.
@@ -586,7 +618,7 @@ export class Master extends Contract.extend(Ownable) {
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST,
+            amount: this.getAssetAllowlistMbr(),
         });
 
         sendAssetTransfer({
@@ -623,7 +655,7 @@ export class Master extends Contract.extend(Ownable) {
 
         sendPayment({
             receiver: this.txn.sender,
-            amount: globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST,
+            amount: this.getAssetAllowlistMbr(),
         });
 
         this.AssetAllowlistRemoved.log({ asset: asset });
@@ -637,7 +669,8 @@ export class Master extends Contract.extend(Ownable) {
      * @param asset The asset to be debited.
      * @param amount The amount of the asset to be debited.
      */
-    cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
+    cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64, ref: string): void {
+        this.whenNotPaused();
         this.onlyOwner();
 
         // Ensure the nonce is correct
@@ -649,6 +682,7 @@ export class Master extends Contract.extend(Ownable) {
             assetReceiver: this.app.address,
             xferAsset: asset,
             assetAmount: amount,
+            note: ref,
         });
 
         this.Debit.log({
@@ -656,6 +690,7 @@ export class Master extends Contract.extend(Ownable) {
             asset: asset,
             amount: amount,
             nonce: nonce,
+            reference: ref,
         });
 
         // Increment the nonce
@@ -693,6 +728,8 @@ export class Master extends Contract.extend(Ownable) {
      * @param amount - The amount of the asset to refund.
      */
     cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
+        this.whenNotPaused();
+
         assert(this.txn.sender === this.refund_address.value, 'SENDER_NOT_ALLOWED');
 
         // Ensure the nonce is correct
@@ -782,6 +819,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param nonce The nonce to prevent duplicate settlements.
      */
     settle(asset: AssetID, amount: uint64, nonce: uint64): void {
+        this.whenNotPaused();
         this.onlyOwner();
 
         // Ensure the nonce is correct
@@ -805,6 +843,14 @@ export class Master extends Contract.extend(Ownable) {
         this.settlement_nonce.value = this.settlement_nonce.value + 1;
     }
 
+    /**
+     * Retrieves the minimum balance requirement for adding an asset to the card fund.
+     * @returns The minimum balance requirement for adding an asset to the card fund.
+     */
+    getCardFundAssetMbr(): uint64 {
+        return globals.assetOptInMinBalance;
+    }
+
     // ===== Card Holder Methods =====
     /**
      * Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account
@@ -817,12 +863,12 @@ export class Master extends Contract.extend(Ownable) {
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.assetOptInMinBalance,
+            amount: this.getCardFundAssetMbr(),
         });
 
         sendPayment({
             receiver: cardFund,
-            amount: globals.assetOptInMinBalance,
+            amount: this.getCardFundAssetMbr(),
         });
 
         this.cardFundAssetOptIn(cardFund, asset);
@@ -915,7 +961,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param withdrawal_hash - The hash of the withdrawal.
      * @param early_withdrawal_sig - The signature for early withdrawal.
      */
-    cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes32): void {
+    cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
@@ -928,7 +974,10 @@ export class Master extends Contract.extend(Ownable) {
                 increaseOpcodeBudget();
             }
 
-            assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value), 'SIGNATURE_INVALID');
+            assert(
+                ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value),
+                'SIGNATURE_INVALID'
+            );
         }
 
         // Issue the withdrawal

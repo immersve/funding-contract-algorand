@@ -25,6 +25,69 @@
       }
     },
     {
+      "name": "pauser",
+      "desc": "@noticeReturns current pauser@returnPauser's address",
+      "args": [],
+      "returns": {
+        "type": "address"
+      }
+    },
+    {
+      "name": "pause",
+      "desc": "@devcalled by the owner to pause, triggers stopped state",
+      "args": [],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "Pause",
+          "args": [],
+          "desc": ""
+        }
+      ]
+    },
+    {
+      "name": "unpause",
+      "desc": "@devcalled by the owner to unpause, returns to normal state",
+      "args": [],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "Unpause",
+          "args": [],
+          "desc": ""
+        }
+      ]
+    },
+    {
+      "name": "updatePauser",
+      "desc": "@devupdate the pauser role",
+      "args": [
+        {
+          "name": "_newPauser",
+          "type": "address"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      },
+      "events": [
+        {
+          "name": "PauserChanged",
+          "args": [
+            {
+              "name": "newAddress",
+              "type": "address"
+            }
+          ],
+          "desc": ""
+        }
+      ]
+    },
+    {
       "name": "deploy",
       "desc": "Deploy a partner channel, setting the owner as provided",
       "args": [
@@ -82,6 +145,21 @@
       }
     },
     {
+      "name": "getPartnerChannelMbr",
+      "desc": "Retrieves the minimum balance requirement for creating a partner channel account.",
+      "args": [
+        {
+          "name": "partnerChannelName",
+          "type": "string",
+          "desc": "The name of the partner channel."
+        }
+      ],
+      "returns": {
+        "type": "uint64",
+        "desc": "The minimum balance requirement for creating a partner channel account."
+      }
+    },
+    {
       "name": "partnerChannelCreate",
       "desc": "Creates a partner channel account and associates it with the provided partner channel name.Only the owner of the contract can call this function.",
       "args": [
@@ -129,6 +207,21 @@
       ],
       "returns": {
         "type": "void"
+      }
+    },
+    {
+      "name": "getCardFundMbr",
+      "desc": "Retrieves the minimum balance requirement for creating a card fund account.",
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset to opt-in to. 0 = No asset opt-in"
+        }
+      ],
+      "returns": {
+        "type": "uint64",
+        "desc": "Minimum balance requirement for creating a card fund account"
       }
     },
     {
@@ -210,6 +303,15 @@
       ],
       "returns": {
         "type": "void"
+      }
+    },
+    {
+      "name": "getAssetAllowlistMbr",
+      "desc": "Retrieves the minimum balance requirement for adding an asset to the allowlist.",
+      "args": [],
+      "returns": {
+        "type": "uint64",
+        "desc": "Minimum balance requirement for adding an asset to the allowlist"
       }
     },
     {
@@ -297,6 +399,10 @@
         {
           "name": "nonce",
           "type": "uint64"
+        },
+        {
+          "name": "ref",
+          "type": "string"
         }
       ],
       "returns": {
@@ -325,6 +431,11 @@
               "name": "nonce",
               "type": "uint64",
               "desc": "Nonce used"
+            },
+            {
+              "name": "reference",
+              "type": "string",
+              "desc": "Transaction reference"
             }
           ],
           "desc": "Debit event"
@@ -541,6 +652,15 @@
       ]
     },
     {
+      "name": "getCardFundAssetMbr",
+      "desc": "Retrieves the minimum balance requirement for adding an asset to the card fund.",
+      "args": [],
+      "returns": {
+        "type": "uint64",
+        "desc": "The minimum balance requirement for adding an asset to the card fund."
+      }
+    },
+    {
       "name": "cardFundEnableAsset",
       "desc": "Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account",
       "args": [
@@ -703,7 +823,7 @@
         },
         {
           "name": "early_withdrawal_sig",
-          "type": "byte[32]",
+          "type": "byte[64]",
           "desc": "The signature for early withdrawal."
         }
       ],
@@ -728,6 +848,26 @@
         }
       ],
       "desc": "Event emitted when ownership of the contract is transferred."
+    },
+    {
+      "name": "Pause",
+      "args": [],
+      "desc": ""
+    },
+    {
+      "name": "Unpause",
+      "args": [],
+      "desc": ""
+    },
+    {
+      "name": "PauserChanged",
+      "args": [
+        {
+          "name": "newAddress",
+          "type": "address"
+        }
+      ],
+      "desc": ""
     },
     {
       "name": "PartnerChannelCreated",
@@ -842,6 +982,11 @@
           "name": "nonce",
           "type": "uint64",
           "desc": "Nonce used"
+        },
+        {
+          "name": "reference",
+          "type": "string",
+          "desc": "Transaction reference"
         }
       ],
       "desc": "Debit event"
