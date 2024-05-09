@@ -156,6 +156,177 @@ transferOwnership:
 	callsub _transferOwnership
 	retsub
 
+// whenNotPaused(): void
+//
+// @dev Modifier to make a function callable only when the contract is not paused.
+whenNotPaused:
+	proto 0 0
+
+	// src/roles/Pausable.algo.ts:49
+	// assert(!this.paused.value)
+	byte 0x706175736564 // "paused"
+	app_global_get
+	int 0
+	getbit
+	!
+	assert
+	retsub
+
+// onlyPauser(): void
+//
+// @dev throws if called by any account other than the pauser
+onlyPauser:
+	proto 0 0
+
+	// src/roles/Pausable.algo.ts:56
+	// assert(this.txn.sender === this._pauser.value)
+	txn Sender
+	byte 0x5f706175736572 // "_pauser"
+	app_global_get
+	==
+	assert
+	retsub
+
+// pauser()address
+*abi_route_pauser:
+	// The ABI return prefix
+	byte 0x151f7c75
+
+	// execute pauser()address
+	callsub pauser
+	concat
+	log
+	int 1
+	return
+
+// pauser(): Address
+//
+// @notice Returns current pauser
+// @return Pauser's address
+pauser:
+	proto 0 1
+
+	// src/roles/Pausable.algo.ts:65
+	// return this._pauser.value;
+	byte 0x5f706175736572 // "_pauser"
+	app_global_get
+	retsub
+
+// pause()void
+*abi_route_pause:
+	// execute pause()void
+	callsub pause
+	int 1
+	return
+
+// pause(): void
+//
+// @dev called by the owner to pause, triggers stopped state
+pause:
+	proto 0 0
+
+	// src/roles/Pausable.algo.ts:73
+	// this.onlyPauser()
+	callsub onlyPauser
+
+	// src/roles/Pausable.algo.ts:75
+	// this.paused.value = true
+	byte 0x706175736564 // "paused"
+	int 1
+	byte 0x00
+	int 0
+	uncover 2
+	setbit
+	app_global_put
+
+	// src/roles/Pausable.algo.ts:76
+	// this.Pause.log({})
+	byte 0xcf23a30f // Pause()
+	concat
+	log
+	retsub
+
+// unpause()void
+*abi_route_unpause:
+	// execute unpause()void
+	callsub unpause
+	int 1
+	return
+
+// unpause(): void
+//
+// @dev called by the owner to unpause, returns to normal state
+unpause:
+	proto 0 0
+
+	// src/roles/Pausable.algo.ts:83
+	// this.onlyPauser()
+	callsub onlyPauser
+
+	// src/roles/Pausable.algo.ts:85
+	// this.paused.value = false
+	byte 0x706175736564 // "paused"
+	int 0
+	byte 0x00
+	int 0
+	uncover 2
+	setbit
+	app_global_put
+
+	// src/roles/Pausable.algo.ts:86
+	// this.Unpause.log({})
+	byte 0xb163ee0b // Unpause()
+	concat
+	log
+	retsub
+
+// updatePauser(address)void
+*abi_route_updatePauser:
+	// _newPauser: address
+	txna ApplicationArgs 1
+	dup
+	len
+	int 32
+	==
+	assert
+
+	// execute updatePauser(address)void
+	callsub updatePauser
+	int 1
+	return
+
+// updatePauser(_newPauser: Address): void
+//
+// @dev update the pauser role
+updatePauser:
+	proto 1 0
+
+	// src/roles/Pausable.algo.ts:93
+	// this.onlyPauser()
+	callsub onlyPauser
+
+	// src/roles/Pausable.algo.ts:95
+	// assert(_newPauser !== globals.zeroAddress)
+	frame_dig -1 // _newPauser: Address
+	global ZeroAddress
+	!=
+	assert
+
+	// src/roles/Pausable.algo.ts:96
+	// this._pauser.value = _newPauser
+	byte 0x5f706175736572 // "_pauser"
+	frame_dig -1 // _newPauser: Address
+	app_global_put
+
+	// src/roles/Pausable.algo.ts:97
+	// this.PauserChanged.log({ newAddress: this._pauser.value })
+	byte 0xcc40923c // PauserChanged(address)
+	byte 0x5f706175736572 // "_pauser"
+	app_global_get
+	concat
+	log
+	retsub
+
 // deploy()void
 *abi_route_deploy:
 	// execute deploy()void
@@ -171,6 +342,12 @@ deploy:
 	// this._transferOwnership(this.txn.sender)
 	txn Sender
 	callsub _transferOwnership
+
+	// src/Immersve.algo.ts:57
+	// this._pauser.value = this.txn.sender
+	byte 0x5f706175736572 // "_pauser"
+	txn Sender
+	app_global_put
 	retsub
 
 // update()void
@@ -184,7 +361,7 @@ deploy:
 update:
 	proto 0 0
 
-	// src/Immersve.algo.ts:61
+	// src/Immersve.algo.ts:62
 	// assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED')
 	txn Sender
 	txna Applications 0
@@ -207,7 +384,7 @@ update:
 destroy:
 	proto 0 0
 
-	// src/Immersve.algo.ts:66
+	// src/Immersve.algo.ts:67
 	// assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED')
 	txn Sender
 	txna Applications 0
@@ -228,8 +405,12 @@ destroy:
 *call_NoOp:
 	method "owner()address"
 	method "transferOwnership(address)void"
+	method "pauser()address"
+	method "pause()void"
+	method "unpause()void"
+	method "updatePauser(address)void"
 	txna ApplicationArgs 0
-	match *abi_route_owner *abi_route_transferOwnership
+	match *abi_route_owner *abi_route_transferOwnership *abi_route_pauser *abi_route_pause *abi_route_unpause *abi_route_updatePauser
 	err
 
 *call_UpdateApplication:

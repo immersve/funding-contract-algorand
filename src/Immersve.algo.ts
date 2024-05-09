@@ -49,11 +49,12 @@ type WithdrawalRequest = {
 };
 
 // eslint-disable-next-line no-unused-vars
-class Placeholder extends Contract.extend(Ownable) {
+class Placeholder extends Contract.extend(Ownable, Pausable) {
     // Updatable and destroyable placeholder contract
     @allow.create('NoOp')
     deploy(): void {
         this._transferOwnership(this.txn.sender);
+        this._pauser.value = this.txn.sender;
     }
 
     @allow.call('UpdateApplication')
@@ -350,6 +351,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     @allow.create('NoOp')
     deploy(owner: Address): Address {
         this._transferOwnership(owner);
+        this._pauser.value = this.txn.sender;
 
         return this.app.address;
     }
