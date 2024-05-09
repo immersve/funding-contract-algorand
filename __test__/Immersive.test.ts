@@ -1,6 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 import algosdk from 'algosdk';
+import nacl from 'tweetnacl';
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
 import { sendTransaction, microAlgos } from '@algorandfoundation/algokit-utils';
@@ -19,6 +20,7 @@ describe('Immersve', () => {
     let immersve: algosdk.Account;
     let user: algosdk.Account;
     let user2: algosdk.Account;
+    let withdrawalAcc: algosdk.Account;
 
     let fakeUSDC: number;
     let newPartnerChannel: string;
@@ -29,7 +31,8 @@ describe('Immersve', () => {
         await fixture.beforeEach();
         const { algod, generateAccount } = fixture.context;
 
-        [immersve, user, user2, circle] = await Promise.all([
+        [immersve, user, user2, circle, withdrawalAcc] = await Promise.all([
+            generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
             generateAccount({ initialFunds: AlgoAmount.Algos(10) }),
@@ -168,11 +171,27 @@ describe('Immersve', () => {
         expect(result.confirmation!.poolError).toBe('');
     });
 
-    test('Set withdrawal rounds', async () => {
+    test('Set withdrawal rounds to 0', async () => {
         // A real value would be:
         // 60 * 60 * 24 * 5 = 432_000 seconds = 5 days
         // We're using 0 seconds to allow for instant withdrawals
         const result = await appClient.setWithdrawalTimeout({ seconds: 0 });
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
+    test('Set early withdrawal public key', async () => {
+        const result = await appClient.setEarlyWithdrawalPubkey(
+            {
+                pubkey: algosdk.decodeAddress(withdrawalAcc.addr).publicKey,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
 
         expect(result.confirmation!.poolError).toBe('');
     });
@@ -462,7 +481,7 @@ describe('Immersve', () => {
                 cardFund: newCardAddress,
                 recipient: user2.addr,
                 asset: fakeUSDC,
-                amount: 5_000_000,
+                amount: 3_000_000,
             },
             {
                 sender: user2,
@@ -523,7 +542,59 @@ describe('Immersve', () => {
         expect(result.confirmation!.poolError).toBe('');
     });
 
+    test('Set withdrawal rounds to 10', async () => {
+        // A real value would be:
+        // 60 * 60 * 24 * 5 = 432_000 seconds = 5 days
+        // We're using 0 seconds to allow for instant withdrawals
+        const result = await appClient.setWithdrawalTimeout({ seconds: 10 });
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
+
     // TODO: cardWithdrawEarly test
+    test('User creates another withdrawal request', async () => {
+        const result = await appClient.optIn.cardFundWithdrawalRequest(
+            {
+                cardFund: newCardAddress,
+                recipient: user2.addr,
+                asset: fakeUSDC,
+                amount: 2_000_000,
+            },
+            {
+                sender: user2,
+                sendParams: {
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(result.return).toBeDefined();
+
+        withdrawalRequest = result.return!;
+    });
+
+    // Early Withdrawal Test
+    test('Request early withdrawal', async () => {
+        // Generate the early withdrawal signature using the withdrawalAcc secret key
+        const sig = nacl.sign.detached(Buffer.from(withdrawalRequest), withdrawalAcc.sk);
+        const result = await appClient.cardFundWithdrawEarly(
+            {
+                cardFund: newCardAddress,
+                withdrawalHash: withdrawalRequest,
+                earlyWithdrawalSig: sig,
+            },
+            {
+                sender: user2,
+                sendParams: {
+                    fee: microAlgos(2_000 + 3_000), // 3x OpUp
+                    populateAppCallResources: true,
+                },
+            }
+        );
+        console.log(result.transaction?.txID());
+
+        expect(result.confirmation!.poolError).toBe('');
+    });
 
     test('Disable FakeUSDC for card', async () => {
         const result = await appClient.cardFundDisableAsset(

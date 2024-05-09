@@ -2762,13 +2762,13 @@ cardFundWithdraw:
 	app_local_del
 	retsub
 
-// cardFundWithdrawEarly(address,byte[32],byte[32])void
+// cardFundWithdrawEarly(address,byte[32],byte[64])void
 *abi_route_cardFundWithdrawEarly:
-	// early_withdrawal_sig: byte[32]
+	// early_withdrawal_sig: byte[64]
 	txna ApplicationArgs 3
 	dup
 	len
-	int 32
+	int 64
 	==
 	assert
 
@@ -2788,12 +2788,12 @@ cardFundWithdraw:
 	==
 	assert
 
-	// execute cardFundWithdrawEarly(address,byte[32],byte[32])void
+	// execute cardFundWithdrawEarly(address,byte[32],byte[64])void
 	callsub cardFundWithdrawEarly
 	int 1
 	return
 
-// cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes32): void
+// cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes64): void
 //
 // Withdraws funds before the withdrawal timestamp has lapsed, by using the early withdrawal signature provided by Immersve.
 // @param cardFund - The address of the card.
@@ -2865,7 +2865,7 @@ cardFundWithdrawEarly:
 	// src/Immersve.algo.ts:930
 	// assert(ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value))
 	frame_dig -2 // withdrawal_hash: bytes32
-	frame_dig -3 // early_withdrawal_sig: bytes32
+	frame_dig -3 // early_withdrawal_sig: bytes64
 	byte 0x6577706b // "ewpk"
 	app_global_get
 	ed25519verify_bare
@@ -2919,7 +2919,7 @@ cardFundWithdrawEarly:
 	method "cardFundWithdrawalRequest(address,address,uint64,uint64)byte[32]"
 	method "cardFundWithdrawalCancel(address,byte[32])void"
 	method "cardFundWithdraw(address,byte[32])void"
-	method "cardFundWithdrawEarly(address,byte[32],byte[32])void"
+	method "cardFundWithdrawEarly(address,byte[32],byte[64])void"
 	txna ApplicationArgs 0
 	match *abi_route_owner *abi_route_transferOwnership *abi_route_setWithdrawalTimeout *abi_route_setEarlyWithdrawalPubkey *abi_route_partnerChannelCreate *abi_route_partnerChannelClose *abi_route_cardFundCreate *abi_route_cardFundClose *abi_route_cardFundRecover *abi_route_assetAllowlistAdd *abi_route_assetAllowlistRemove *abi_route_cardFundDebit *abi_route_getRefundAddress *abi_route_setRefundAddress *abi_route_cardFundRefund *abi_route_getNextSettlementNonce *abi_route_getNextCardFundNonce *abi_route_getCardFundData *abi_route_getSettlementAddress *abi_route_setSettlementAddress *abi_route_settle *abi_route_cardFundEnableAsset *abi_route_cardFundDisableAsset *abi_route_cardFundWithdrawalRequest *abi_route_cardFundWithdrawalCancel *abi_route_cardFundWithdraw *abi_route_cardFundWithdrawEarly
 	err

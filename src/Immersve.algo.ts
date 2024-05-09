@@ -915,7 +915,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param withdrawal_hash - The hash of the withdrawal.
      * @param early_withdrawal_sig - The signature for early withdrawal.
      */
-    cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes32): void {
+    cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;

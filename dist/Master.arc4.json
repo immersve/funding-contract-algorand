@@ -703,7 +703,7 @@
         },
         {
           "name": "early_withdrawal_sig",
-          "type": "byte[32]",
+          "type": "byte[64]",
           "desc": "The signature for early withdrawal."
         }
       ],
