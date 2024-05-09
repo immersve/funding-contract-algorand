@@ -452,6 +452,7 @@ describe('Immersve', () => {
                 asset: fakeUSDC,
                 amount: 5_000_000,
                 nonce: nextNonce.return as bigint,
+                ref: 'Test Transaction REF-1234567890',
             },
             {
                 sendParams: {

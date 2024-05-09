@@ -186,6 +186,8 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         amount: uint64;
         /** Nonce used */
         nonce: uint64;
+        /** Transaction reference */
+        reference: string;
     }>();
 
     /**
@@ -667,7 +669,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @param asset The asset to be debited.
      * @param amount The amount of the asset to be debited.
      */
-    cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
+    cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64, ref: string): void {
         this.whenNotPaused();
         this.onlyOwner();
 
@@ -680,6 +682,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             assetReceiver: this.app.address,
             xferAsset: asset,
             assetAmount: amount,
+            note: ref,
         });
 
         this.Debit.log({
@@ -687,6 +690,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             asset: asset,
             amount: amount,
             nonce: nonce,
+            reference: ref,
         });
 
         // Increment the nonce

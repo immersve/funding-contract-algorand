@@ -399,6 +399,10 @@
         {
           "name": "nonce",
           "type": "uint64"
+        },
+        {
+          "name": "ref",
+          "type": "string"
         }
       ],
       "returns": {
@@ -427,6 +431,11 @@
               "name": "nonce",
               "type": "uint64",
               "desc": "Nonce used"
+            },
+            {
+              "name": "reference",
+              "type": "string",
+              "desc": "Transaction reference"
             }
           ],
           "desc": "Debit event"
@@ -973,6 +982,11 @@
           "name": "nonce",
           "type": "uint64",
           "desc": "Nonce used"
+        },
+        {
+          "name": "reference",
+          "type": "string",
+          "desc": "Transaction reference"
         }
       ],
       "desc": "Debit event"
