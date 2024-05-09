@@ -145,6 +145,21 @@
       }
     },
     {
+      "name": "getPartnerChannelMbr",
+      "desc": "Retrieves the minimum balance requirement for creating a partner channel account.",
+      "args": [
+        {
+          "name": "partnerChannelName",
+          "type": "string",
+          "desc": "The name of the partner channel."
+        }
+      ],
+      "returns": {
+        "type": "uint64",
+        "desc": "The minimum balance requirement for creating a partner channel account."
+      }
+    },
+    {
       "name": "partnerChannelCreate",
       "desc": "Creates a partner channel account and associates it with the provided partner channel name.Only the owner of the contract can call this function.",
       "args": [
@@ -192,6 +207,21 @@
       ],
       "returns": {
         "type": "void"
+      }
+    },
+    {
+      "name": "getCardFundMbr",
+      "desc": "Retrieves the minimum balance requirement for creating a card fund account.",
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset to opt-in to. 0 = No asset opt-in"
+        }
+      ],
+      "returns": {
+        "type": "uint64",
+        "desc": "Minimum balance requirement for creating a card fund account"
       }
     },
     {
@@ -273,6 +303,15 @@
       ],
       "returns": {
         "type": "void"
+      }
+    },
+    {
+      "name": "getAssetAllowlistMbr",
+      "desc": "Retrieves the minimum balance requirement for adding an asset to the allowlist.",
+      "args": [],
+      "returns": {
+        "type": "uint64",
+        "desc": "Minimum balance requirement for adding an asset to the allowlist"
       }
     },
     {
@@ -602,6 +641,15 @@
           "desc": "Settlement event"
         }
       ]
+    },
+    {
+      "name": "getCardFundAssetMbr",
+      "desc": "Retrieves the minimum balance requirement for adding an asset to the card fund.",
+      "args": [],
+      "returns": {
+        "type": "uint64",
+        "desc": "The minimum balance requirement for adding an asset to the card fund."
+      }
     },
     {
       "name": "cardFundEnableAsset",

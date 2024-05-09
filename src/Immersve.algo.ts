@@ -27,9 +27,6 @@ import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 import { Pausable } from './roles/Pausable.algo';
 
-// Box Cost: 2500 + 400 * (Prefix + AssetID + Address)
-const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (2 + 8 + 32);
-
 // CardFundData
 type CardFundData = {
     partnerChannel: Address;
@@ -305,7 +302,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         sendPayment({
             sender: cardFund,
             receiver: this.txn.sender,
-            amount: globals.assetOptInMinBalance,
+            amount: this.getCardFundAssetMbr(),
         });
 
         this.CardFundAssetDisabled.log({
@@ -405,6 +402,16 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     }
 
     /**
+     * Retrieves the minimum balance requirement for creating a partner channel account.
+     * @param partnerChannelName - The name of the partner channel.
+     * @returns The minimum balance requirement for creating a partner channel account.
+     */
+    getPartnerChannelMbr(partnerChannelName: string): uint64 {
+        const boxCost = 2500 + 400 * (3 + 32 + len(partnerChannelName));
+        return globals.minBalance + globals.minBalance + boxCost;
+    }
+
+    /**
      * Creates a partner channel account and associates it with the provided partner channel name.
      * Only the owner of the contract can call this function.
      *
@@ -413,11 +420,9 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @returns The address of the newly created partner channel account.
      */
     partnerChannelCreate(mbr: PayTxn, partnerChannelName: string): Address {
-        const boxCost = 2500 + 400 * (3 + 32 + len(partnerChannelName));
-
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.minBalance + globals.assetOptInMinBalance + boxCost,
+            amount: this.getPartnerChannelMbr(partnerChannelName),
         });
 
         // Create a new account
@@ -472,6 +477,19 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     }
 
     /**
+     * Retrieves the minimum balance requirement for creating a card fund account.
+     * @param asset Asset to opt-in to. 0 = No asset opt-in
+     * @returns Minimum balance requirement for creating a card fund account
+     */
+    getCardFundMbr(asset: AssetID): uint64 {
+        // TODO: Double check size requirement is accurate. The prefix doesn't seem right.
+        // Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce))
+        const boxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8));
+        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
+        return globals.minBalance + assetMbr + boxCost;
+    }
+
+    /**
      * Create account. This generates a brand new account and funds the minimum balance requirement
      * @param mbr Payment transaction of minimum balance requirement
      * @param partnerChannel Funding Channel name
@@ -487,12 +505,10 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             address: globals.zeroAddress,
             nonce: 0,
         };
-        const boxCost = 2500 + 400 * (3 + 32 + len(cardFundData));
-        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.minBalance + assetMbr + boxCost,
+            amount: this.getCardFundMbr(asset),
         });
 
         // Create a new account
@@ -506,6 +522,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         cardFundData.address = cardFundAddr;
 
         // Fund the account with a minimum balance
+        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
         sendPayment({
             receiver: cardFundAddr,
             amount: globals.minBalance + assetMbr,
@@ -547,7 +564,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         });
 
         const cardFundSize = this.card_funds(cardFund).size;
-        const boxCost = 2500 + 400 * (1 + cardFundSize + 32);
+        const boxCost = 2500 + 400 * (1 + 32 + cardFundSize);
 
         sendPayment({
             receiver: this.txn.sender,
@@ -579,6 +596,16 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     }
 
     /**
+     * Retrieves the minimum balance requirement for adding an asset to the allowlist.
+     * @returns Minimum balance requirement for adding an asset to the allowlist
+     */
+    getAssetAllowlistMbr(): uint64 {
+        // Box Cost: 2500 + 400 * (Prefix + AssetID + Address)
+        const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (2 + 8 + 32);
+        return globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST;
+    }
+
+    /**
      * Allows the master contract to flag intent of accepting an asset.
      *
      * @param mbr Payment transaction of minimum balance requirement.
@@ -589,7 +616,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST,
+            amount: this.getAssetAllowlistMbr(),
         });
 
         sendAssetTransfer({
@@ -626,7 +653,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
         sendPayment({
             receiver: this.txn.sender,
-            amount: globals.assetOptInMinBalance + ASSET_SETTLEMENT_ADDRESS_COST,
+            amount: this.getAssetAllowlistMbr(),
         });
 
         this.AssetAllowlistRemoved.log({ asset: asset });
@@ -812,6 +839,14 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         this.settlement_nonce.value = this.settlement_nonce.value + 1;
     }
 
+    /**
+     * Retrieves the minimum balance requirement for adding an asset to the card fund.
+     * @returns The minimum balance requirement for adding an asset to the card fund.
+     */
+    getCardFundAssetMbr(): uint64 {
+        return globals.assetOptInMinBalance;
+    }
+
     // ===== Card Holder Methods =====
     /**
      * Allows the depositor (or owner) to OptIn to an asset, increasing the minimum balance requirement of the account
@@ -824,12 +859,12 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: globals.assetOptInMinBalance,
+            amount: this.getCardFundAssetMbr(),
         });
 
         sendPayment({
             receiver: cardFund,
-            amount: globals.assetOptInMinBalance,
+            amount: this.getCardFundAssetMbr(),
         });
 
         this.cardFundAssetOptIn(cardFund, asset);

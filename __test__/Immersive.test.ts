@@ -228,18 +228,29 @@ describe('Immersve', () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
 
-        // 2500 per box, 400 per byte: prefix + partner name + addr length
-        const boxCost = 2500 + 400 * (3 + 32 + 'Pera'.length);
+        const CHANNEL_NAME = 'Pera';
+
+        const getMbr = await appClient.getPartnerChannelMbr(
+            {
+                partnerChannelName: CHANNEL_NAME,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
 
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: immersve.addr,
             to: appAddress,
-            amount: 200_000 + boxCost, // TODO: Use minimum balance + asset opt-in cost + box cost
+            amount: getMbr.return!,
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
         const result = await appClient.partnerChannelCreate(
-            { mbr, partnerChannelName: 'Pera' },
+            { mbr, partnerChannelName: CHANNEL_NAME },
             { sendParams: { fee: microAlgos(5_000), populateAppCallResources: true } }
         );
         expect(result.return).toBeDefined();
@@ -251,13 +262,22 @@ describe('Immersve', () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
 
-        // 2500 per box, 400 per byte: prefix + partner name + addr length
-        const boxCost = 2500 + 400 * (3 + 32 + 32 + 32 + 32 + 8);
+        const getMbr = await appClient.getCardFundMbr(
+            {
+                asset: 0,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
 
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: user2.addr,
             to: appAddress,
-            amount: 100_000 + boxCost,
+            amount: getMbr.return!,
             suggestedParams: await algod.getTransactionParams().do(),
         });
         const result = await appClient.cardFundCreate(
@@ -299,13 +319,22 @@ describe('Immersve', () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
 
-        // 2500 per box, 400 per byte: prefix + partner name + addr length
-        const boxCost = 2500 + 400 * (3 + 32 + 32 + 32 + 32 + 8);
+        const getMbr = await appClient.getCardFundMbr(
+            {
+                asset: fakeUSDC,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
 
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: user.addr,
             to: appAddress,
-            amount: 100_000 + 100_000 + boxCost,
+            amount: getMbr.return!,
             suggestedParams: await algod.getTransactionParams().do(),
         });
         const result = await appClient.cardFundCreate(
@@ -349,10 +378,20 @@ describe('Immersve', () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;
 
+        const getMbr = await appClient.getCardFundAssetMbr(
+            {},
+            {
+                sendParams: {
+                    fee: microAlgos(1_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
         const mbr = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             from: user.addr,
             to: appAddress,
-            amount: 100_000,
+            amount: getMbr.return!,
             suggestedParams: await algod.getTransactionParams().do(),
         });
 
