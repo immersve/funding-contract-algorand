@@ -25,6 +25,7 @@
 /* eslint-disable camelcase */
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
+import { Pausable } from './roles/Pausable.algo';
 
 // Box Cost: 2500 + 400 * (Prefix + AssetID + Address)
 const ASSET_SETTLEMENT_ADDRESS_COST = 2500 + 400 * (2 + 8 + 32);
@@ -83,7 +84,7 @@ class ControlledAddress extends Contract {
     }
 }
 
-export class Master extends Contract.extend(Ownable) {
+export class Master extends Contract.extend(Ownable, Pausable) {
     // ========== Storage ==========
     // Card Funds
     card_funds = BoxMap<Address, CardFundData>({ prefix: 'cf' });
@@ -638,6 +639,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param amount The amount of the asset to be debited.
      */
     cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
+        this.whenNotPaused();
         this.onlyOwner();
 
         // Ensure the nonce is correct
@@ -693,6 +695,8 @@ export class Master extends Contract.extend(Ownable) {
      * @param amount - The amount of the asset to refund.
      */
     cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
+        this.whenNotPaused();
+
         assert(this.txn.sender === this.refund_address.value, 'SENDER_NOT_ALLOWED');
 
         // Ensure the nonce is correct
@@ -782,6 +786,7 @@ export class Master extends Contract.extend(Ownable) {
      * @param nonce The nonce to prevent duplicate settlements.
      */
     settle(asset: AssetID, amount: uint64, nonce: uint64): void {
+        this.whenNotPaused();
         this.onlyOwner();
 
         // Ensure the nonce is correct
