@@ -88,14 +88,15 @@
     ]
   },
   {
-    "teal": 22,
+    "teal": 23,
     "source": 68,
+    "errorMessage": "The requested action is not implemented in this contract. Are you using the correct OnComplete? Did you set your app ID?",
     "pc": [
       40
     ]
   },
   {
-    "teal": 27,
+    "teal": 28,
     "source": 73,
     "pc": [
       41,
@@ -107,7 +108,7 @@
     ]
   },
   {
-    "teal": 30,
+    "teal": 31,
     "source": 73,
     "pc": [
       47,
@@ -116,35 +117,35 @@
     ]
   },
   {
-    "teal": 31,
+    "teal": 32,
     "source": 73,
     "pc": [
       50
     ]
   },
   {
-    "teal": 32,
+    "teal": 33,
     "source": 73,
     "pc": [
       51
     ]
   },
   {
-    "teal": 33,
+    "teal": 34,
     "source": 73,
     "pc": [
       52
     ]
   },
   {
-    "teal": 34,
+    "teal": 35,
     "source": 73,
     "pc": [
       53
     ]
   },
   {
-    "teal": 41,
+    "teal": 42,
     "source": 73,
     "pc": [
       54,
@@ -153,21 +154,21 @@
     ]
   },
   {
-    "teal": 49,
+    "teal": 50,
     "source": 75,
     "pc": [
       57
     ]
   },
   {
-    "teal": 50,
+    "teal": 51,
     "source": 75,
     "pc": [
       58
     ]
   },
   {
-    "teal": 51,
+    "teal": 52,
     "source": 75,
     "pc": [
       59,
@@ -175,7 +176,7 @@
     ]
   },
   {
-    "teal": 55,
+    "teal": 56,
     "source": 76,
     "pc": [
       61,
@@ -183,7 +184,7 @@
     ]
   },
   {
-    "teal": 56,
+    "teal": 57,
     "source": 76,
     "pc": [
       63,
@@ -191,14 +192,14 @@
     ]
   },
   {
-    "teal": 60,
+    "teal": 61,
     "source": 77,
     "pc": [
       65
     ]
   },
   {
-    "teal": 61,
+    "teal": 62,
     "source": 77,
     "pc": [
       66,
@@ -206,7 +207,7 @@
     ]
   },
   {
-    "teal": 65,
+    "teal": 66,
     "source": 78,
     "pc": [
       68,
@@ -214,7 +215,7 @@
     ]
   },
   {
-    "teal": 66,
+    "teal": 67,
     "source": 78,
     "pc": [
       70,
@@ -222,14 +223,14 @@
     ]
   },
   {
-    "teal": 69,
+    "teal": 70,
     "source": 75,
     "pc": [
       72
     ]
   },
   {
-    "teal": 70,
+    "teal": 71,
     "source": 75,
     "pc": [
       73,
@@ -237,14 +238,14 @@
     ]
   },
   {
-    "teal": 73,
+    "teal": 74,
     "source": 75,
     "pc": [
       75
     ]
   },
   {
-    "teal": 77,
+    "teal": 78,
     "source": 81,
     "pc": [
       76,
@@ -252,14 +253,14 @@
     ]
   },
   {
-    "teal": 78,
-    "source": 81,
+    "teal": 79,
+    "source": 73,
     "pc": [
       78
     ]
   },
   {
-    "teal": 81,
+    "teal": 82,
     "source": 68,
     "pc": [
       79,
@@ -271,7 +272,7 @@
     ]
   },
   {
-    "teal": 82,
+    "teal": 83,
     "source": 68,
     "pc": [
       85,
@@ -280,7 +281,7 @@
     ]
   },
   {
-    "teal": 83,
+    "teal": 84,
     "source": 68,
     "pc": [
       88,
@@ -290,8 +291,9 @@
     ]
   },
   {
-    "teal": 84,
+    "teal": 87,
     "source": 68,
+    "errorMessage": "this contract does not implement the given ABI method for create DeleteApplication",
     "pc": [
       92
     ]
