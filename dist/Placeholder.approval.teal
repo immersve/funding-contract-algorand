@@ -343,12 +343,12 @@ updatePauser:
 deploy:
 	proto 0 0
 
-	// src/Immersve.algo.ts:53
+	// src/Immersve.algo.ts:54
 	// this._transferOwnership(this.txn.sender)
 	txn Sender
 	callsub _transferOwnership
 
-	// src/Immersve.algo.ts:54
+	// src/Immersve.algo.ts:55
 	// this._pauser.value = this.txn.sender
 	byte 0x5f706175736572 // "_pauser"
 	txn Sender
@@ -366,7 +366,7 @@ deploy:
 update:
 	proto 0 0
 
-	// src/Immersve.algo.ts:59
+	// src/Immersve.algo.ts:60
 	// assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED')
 	txn Sender
 	txna Applications 0
@@ -389,7 +389,7 @@ update:
 destroy:
 	proto 0 0
 
-	// src/Immersve.algo.ts:64
+	// src/Immersve.algo.ts:65
 	// assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED')
 	txn Sender
 	txna Applications 0
