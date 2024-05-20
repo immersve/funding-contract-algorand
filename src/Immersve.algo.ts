@@ -38,12 +38,10 @@ type CardFundData = {
 
 // Withdrawal request for an amount of an asset, where the timestamp indicates the earliest it can be made
 type WithdrawalRequest = {
-    cardFund: Address;
-    recipient: Address;
     asset: AssetID;
     amount: uint64;
     timestamp: uint64;
-    nonce: uint64;
+    //nonce: uint64;
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -102,10 +100,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     early_withdrawal_pubkey = GlobalStateKey<bytes32>({ key: 'ewpk' });
 
     // Withdrawal requests
-    withdrawals = LocalStateMap<bytes32, WithdrawalRequest>({ maxKeys: 15 });
-
-    // Withdrawal nonce
-    withdrawal_nonce = LocalStateKey<uint64>({ key: 'wn' });
+    withdrawals = BoxMap<Address, WithdrawalRequest>({ key: 'wr' });
 
     // Settlement nonce
     settlement_nonce = GlobalStateKey<uint64>({ key: 'sn' });
@@ -240,8 +235,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         amount: uint64;
         /** Timestamp that must be reached before withdrawal can be completed */
         timestamp: uint64;
-        /** Withdrawal nonce */
-        nonce: uint64;
+        /** Withdrawal hash */
+        hash: uint64;
     }>();
 
     /**
@@ -325,11 +320,13 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         // Emit withdrawal event
         this.Withdrawal.log({
             cardFund: withdrawal.cardFund,
-            recipient: withdrawal.recipient,
+            recipient: this.txn.sender,
             asset: withdrawal.asset,
             amount: withdrawal.amount,
-            nonce: withdrawal.nonce,
         });
+
+        // Delete the withdrawal request
+        this.withdrawals(withdrawal.cardFund).delete();
     }
 
     private updateSettlementAddress(asset: AssetID, newSettlementAddress: Address): void {
@@ -892,33 +889,28 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      * @param cardFund Address to withdraw from
      * @param asset Asset to withdraw
      * @param amount Amount to withdraw
-     * @returns Withdrawal hash used for completing or cancelling the withdrawal
      */
     @allow.call('NoOp')
     @allow.call('OptIn')
-    cardFundWithdrawalRequest(cardFund: Address, recipient: Address, asset: AssetID, amount: uint64): bytes32 {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+    cardFundWithdrawalRequest(cardFund: Address, asset: AssetID, amount: uint64): bytes32 {
+        assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
 
         const withdrawal: WithdrawalRequest = {
-            cardFund: cardFund,
-            recipient: recipient,
             asset: asset,
             amount: amount,
-            timestamp: globals.latestTimestamp + this.withdrawal_wait_time.value,
-            nonce: this.withdrawal_nonce(this.txn.sender).value,
+            timestamp: globals.latestTimestamp
         };
-        this.withdrawal_nonce(this.txn.sender).value = this.withdrawal_nonce(this.txn.sender).value + 1;
+
+        this.withdrawals(cardFund).value = withdrawal;
         const withdrawal_hash = sha256(rawBytes(withdrawal));
 
-        this.withdrawals(this.txn.sender, withdrawal_hash).value = withdrawal;
-
         this.WithdrawalRequest.log({
-            cardFund: withdrawal.cardFund,
-            recipient: withdrawal.recipient,
+            cardFund,
+            recipient: this.txn.sender,
             asset: withdrawal.asset,
             amount: withdrawal.amount,
             timestamp: withdrawal.timestamp,
-            nonce: withdrawal.nonce,
+            hash: withdrawal_hash
         });
 
         return withdrawal_hash;
@@ -927,64 +919,56 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     /**
      * Allows the Card Holder (or contract owner) to cancel a withdrawal request
      * @param cardFund Address to withdraw from
-     * @param withdrawal_hash Hash of the withdrawal request
      */
-    cardFundWithdrawalCancel(cardFund: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-
-        this.withdrawals(this.txn.sender, withdrawal_hash).delete();
+    cardFundWithdrawalCancel(cardFund: Address): void {
+        assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+        assert(this.withdrawals(cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND')
+        this.withdrawals(cardFund).delete();
     }
 
     /**
      * Allows the Card Holder to send an amount of assets from the account
      * @param cardFund Address to withdraw from
-     * @param withdrawal_hash Hash of the withdrawal request
      */
     @allow.call('NoOp')
     @allow.call('CloseOut')
-    cardFundWithdraw(cardFund: Address, withdrawal_hash: bytes32): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+    cardFundWithdraw(cardFund: Address): void {
+        assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+        assert(this.withdrawals(cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
+        const withdrawal = this.withdrawals(cardFund).value;
 
-        const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
-
-        assert(globals.latestTimestamp >= withdrawal.timestamp || this.isOwner(), 'WITHDRAWAL_TIME_INVALID');
+        const release_time = withdrawal.timestamp + this.withdrawal_wait_time.value;
+    
+        assert(globals.latestTimestamp >= release_time, 'WITHDRAWAL_TIME_INVALID');
 
         // Issue the withdrawal
         this.withdrawFunds(withdrawal);
-
-        // Delete the withdrawal request
-        this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
 
     /**
      * Withdraws funds before the withdrawal timestamp has lapsed, by using the early withdrawal signature provided by Immersve.
      * @param cardFund - The address of the card.
-     * @param withdrawal_hash - The hash of the withdrawal.
      * @param early_withdrawal_sig - The signature for early withdrawal.
      */
-    cardFundWithdrawEarly(cardFund: Address, withdrawal_hash: bytes32, early_withdrawal_sig: bytes64): void {
+    cardFundWithdrawEarly(cardFund: Address, early_withdrawal_sig: bytes32): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+        assert(this.withdrawals(cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
+        const withdrawal = this.withdrawals(cardFund).value;
 
-        const withdrawal = this.withdrawals(this.txn.sender, withdrawal_hash).value;
+        const withdrawal_hash = sha256(rawBytes(withdrawal));
 
-        // If the withdrawal timestamp has lapsed, there's no need to use the early withdrawal signature
-        if (globals.latestTimestamp < withdrawal.timestamp) {
-            // Need at least 2000 Opcode budget
-            // TODO: Optimise?
-            while (globals.opcodeBudget < 2500) {
-                increaseOpcodeBudget();
-            }
-
-            assert(
-                ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value),
-                'SIGNATURE_INVALID'
-            );
+        // Need at least 2000 Opcode budget
+        // TODO: Optimise?
+        while (globals.opcodeBudget < 2500) {
+            increaseOpcodeBudget();
         }
+
+        assert(
+            ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value),
+            'SIGNATURE_INVALID'
+        );
 
         // Issue the withdrawal
         this.withdrawFunds(withdrawal);
-
-        // Delete the withdrawal request
-        this.withdrawals(this.txn.sender, withdrawal_hash).delete();
     }
 }
