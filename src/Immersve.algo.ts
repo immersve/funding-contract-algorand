@@ -34,14 +34,17 @@ type CardFundData = {
     owner: Address;
     address: Address;
     nonce: uint64;
+    withdrawalNonce: uint64;
 };
 
 // Withdrawal request for an amount of an asset, where the timestamp indicates the earliest it can be made
 type WithdrawalRequest = {
+    cardFund: Address;
+    recipient: Address;
     asset: AssetID;
     amount: uint64;
-    timestamp: uint64;
-    //nonce: uint64;
+    createdAt: uint64;
+    nonce: uint64;
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -100,7 +103,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     early_withdrawal_pubkey = GlobalStateKey<bytes32>({ key: 'ewpk' });
 
     // Withdrawal requests
-    withdrawals = BoxMap<Address, WithdrawalRequest>({ key: 'wr' });
+    withdrawals = BoxMap<Address, WithdrawalRequest>({ prefix: 'wr' });
 
     // Settlement nonce
     settlement_nonce = GlobalStateKey<uint64>({ key: 'sn' });
@@ -233,10 +236,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         asset: AssetID;
         /** Amount to withdraw */
         amount: uint64;
-        /** Timestamp that must be reached before withdrawal can be completed */
-        timestamp: uint64;
-        /** Withdrawal hash */
-        hash: uint64;
+        /** Withdrawal Creation Timestamp */
+        createdAt: uint64;
+        /** Withdrawal nonce */
+        nonce: uint64;
     }>();
 
     /**
@@ -251,6 +254,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         asset: AssetID;
         /** Amount withdrawn */
         amount: uint64;
+        /** Withdrawal Creation Timestamp */
+        createdAt: uint64;
         /** Withdrawal nonce */
         nonce: uint64;
     }>();
@@ -309,24 +314,30 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
     }
 
-    private withdrawFunds(withdrawal: WithdrawalRequest): void {
+    private withdrawFunds(cardFund: Address, withdrawal: WithdrawalRequest): void {
         sendAssetTransfer({
-            sender: withdrawal.cardFund,
-            assetReceiver: withdrawal.recipient,
+            sender: cardFund,
+            assetReceiver: this.txn.sender,
             xferAsset: withdrawal.asset,
             assetAmount: withdrawal.amount,
         });
 
         // Emit withdrawal event
         this.Withdrawal.log({
-            cardFund: withdrawal.cardFund,
+            cardFund: cardFund,
             recipient: this.txn.sender,
             asset: withdrawal.asset,
             amount: withdrawal.amount,
+            createdAt: withdrawal.createdAt,
+            nonce: withdrawal.nonce
         });
 
-        // Delete the withdrawal request
-        this.withdrawals(withdrawal.cardFund).delete();
+        this.card_funds(cardFund).value.withdrawalNonce = withdrawal.nonce + 1;
+
+        if (this.withdrawals(cardFund).exists) {
+          // Delete the withdrawal request
+          this.withdrawals(cardFund).delete();
+        }
     }
 
     private updateSettlementAddress(asset: AssetID, newSettlementAddress: Address): void {
@@ -504,6 +515,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             owner: this.txn.sender,
             address: globals.zeroAddress,
             nonce: 0,
+            withdrawalNonce: 0
         };
 
         verifyPayTxn(mbr, {
@@ -774,6 +786,17 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     }
 
     /**
+     * Retrieves the next available nonce for the card fund.
+     *
+     * @param cardFund The card fund address.
+     * @returns The nonce for the card fund.
+     */
+    @abi.readonly
+    getNextCardFundWithdrawalNonce(cardFund: Address): uint64 {
+        return this.card_funds(cardFund).value.withdrawalNonce;
+    }
+
+    /**
      * Retrieves the card fund data for a given card fund address.
      *
      * @param cardFund The address of the card fund.
@@ -892,28 +915,29 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     @allow.call('NoOp')
     @allow.call('OptIn')
-    cardFundWithdrawalRequest(cardFund: Address, asset: AssetID, amount: uint64): bytes32 {
+    cardFundWithdrawalRequest(cardFund: Address, asset: AssetID, amount: uint64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+        const cardFundData = this.card_funds(cardFund).value;
 
         const withdrawal: WithdrawalRequest = {
+            cardFund: cardFund,
+            recipient: this.txn.sender,
             asset: asset,
             amount: amount,
-            timestamp: globals.latestTimestamp
+            createdAt: globals.latestTimestamp,
+            nonce: cardFundData.withdrawalNonce
         };
 
         this.withdrawals(cardFund).value = withdrawal;
-        const withdrawal_hash = sha256(rawBytes(withdrawal));
 
         this.WithdrawalRequest.log({
-            cardFund,
+            cardFund: cardFund,
             recipient: this.txn.sender,
             asset: withdrawal.asset,
             amount: withdrawal.amount,
-            timestamp: withdrawal.timestamp,
-            hash: withdrawal_hash
+            createdAt: withdrawal.createdAt,
+            nonce: cardFundData.withdrawalNonce
         });
-
-        return withdrawal_hash;
     }
 
     /**
@@ -935,14 +959,17 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     cardFundWithdraw(cardFund: Address): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         assert(this.withdrawals(cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
+        const cardFundData = this.card_funds(cardFund).value;
         const withdrawal = this.withdrawals(cardFund).value;
 
-        const release_time = withdrawal.timestamp + this.withdrawal_wait_time.value;
-    
+        assert(cardFundData.withdrawalNonce == withdrawal.nonce, 'NONCE_INVALID');
+
+        const release_time = withdrawal.createdAt + this.withdrawal_wait_time.value;
+
         assert(globals.latestTimestamp >= release_time, 'WITHDRAWAL_TIME_INVALID');
 
         // Issue the withdrawal
-        this.withdrawFunds(withdrawal);
+        this.withdrawFunds(cardFund, withdrawal);
     }
 
     /**
@@ -950,10 +977,17 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      * @param cardFund - The address of the card.
      * @param early_withdrawal_sig - The signature for early withdrawal.
      */
-    cardFundWithdrawEarly(cardFund: Address, early_withdrawal_sig: bytes32): void {
+    cardFundWithdrawEarly(cardFund: Address, asset: AssetID, amount: uint64, createdAt: uint64, early_withdrawal_sig: bytes64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-        assert(this.withdrawals(cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
-        const withdrawal = this.withdrawals(cardFund).value;
+        const cardFundData = this.card_funds(cardFund).value;
+        const withdrawal: WithdrawalRequest = {
+          cardFund: cardFund,
+          recipient: this.txn.sender,
+          asset: asset,
+          amount: amount,
+          createdAt: createdAt,
+          nonce: cardFundData.withdrawalNonce
+        };
 
         const withdrawal_hash = sha256(rawBytes(withdrawal));
 
@@ -969,6 +1003,6 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         );
 
         // Issue the withdrawal
-        this.withdrawFunds(withdrawal);
+        this.withdrawFunds(cardFund, withdrawal);
     }
 }
