@@ -45,6 +45,7 @@ type WithdrawalRequest = {
     amount: uint64;
     createdAt: uint64;
     nonce: uint64;
+    genesisHash: bytes32;
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -925,7 +926,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             asset: asset,
             amount: amount,
             createdAt: globals.latestTimestamp,
-            nonce: cardFundData.withdrawalNonce
+            nonce: cardFundData.withdrawalNonce,
+            genesisHash: globals.genesisHash as bytes32
         };
 
         this.withdrawals(cardFund).value = withdrawal;
@@ -986,7 +988,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
           asset: asset,
           amount: amount,
           createdAt: createdAt,
-          nonce: cardFundData.withdrawalNonce
+          nonce: cardFundData.withdrawalNonce,
+          genesisHash: globals.genesisHash as bytes32
         };
 
         const withdrawal_hash = sha256(rawBytes(withdrawal));
