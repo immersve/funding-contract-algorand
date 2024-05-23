@@ -117,9 +117,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
 
     // Withdrawal requests
     // Only one allowed at any given point
-    withdrawals = LocalStateMap<Address, PermissionlessWithdrawalRequest>({
-      maxKeys: 5
-    });
+    withdrawals = LocalStateKey<PermissionlessWithdrawalRequest>({ key: 'wr' });
 
     // Settlement nonce
     settlement_nonce = GlobalStateKey<uint64>({ key: 'sn' });
@@ -382,7 +380,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
 
         if (withdrawalType == WithdrawalTypePermissionLess) {
           // Delete the withdrawal request
-          this.withdrawals(this.txn.sender, cardFund).delete();
+          this.withdrawals(this.txn.sender).delete();
         }
     }
 
@@ -974,7 +972,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             nonce: cardFundData.withdrawalNonce,
         };
 
-        this.withdrawals(this.txn.sender, cardFund).value = withdrawal;
+        this.withdrawals(this.txn.sender).value = withdrawal;
 
         this.WithdrawalRequest.log(withdrawal);
 
@@ -987,10 +985,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     cardFundWithdrawalCancel(cardFund: Address): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-        assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND')
-        const withdrawal = this.withdrawals(this.txn.sender, cardFund).value;
+        assert(this.withdrawals(this.txn.sender).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND')
+        const withdrawal = this.withdrawals(this.txn.sender).value;
         this.WithdrawalRequestCancelled.log(withdrawal);
-        this.withdrawals(this.txn.sender, cardFund).delete();
+        this.withdrawals(this.txn.sender).delete();
     }
 
 
@@ -1002,10 +1000,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     @allow.call('CloseOut')
     cardFundExecutePermissionlessWithdrawal(cardFund: Address, amount: uint64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-        assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
+        assert(this.withdrawals(this.txn.sender).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
         const cardFundData = this.card_funds(cardFund).value;
-        const withdrawal = this.withdrawals(this.txn.sender, cardFund).value;
-
+        const withdrawal = this.withdrawals(this.txn.sender).value;
+        assert(amount <= withdrawal.amount, 'AMOUNT_INVALID');
         assert(cardFundData.withdrawalNonce == withdrawal.nonce, 'NONCE_INVALID');
 
         const release_time = withdrawal.createdAt + this.withdrawal_wait_time.value;
