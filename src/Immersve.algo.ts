@@ -38,15 +38,27 @@ type CardFundData = {
 };
 
 // Withdrawal request for an amount of an asset, where the timestamp indicates the earliest it can be made
-type WithdrawalRequest = {
+type PermissionlessWithdrawalRequest = {
     cardFund: Address;
     recipient: Address;
     asset: AssetID;
     amount: uint64;
     createdAt: uint64;
     nonce: uint64;
-    genesisHash: bytes32;
 };
+
+type ApprovedWithdrawalRequest = {
+  cardFund: Address;
+  recipient: Address;
+  asset: AssetID;
+  amount: uint64;
+  expiresAt: uint64;
+  nonce: uint64;
+  genesisHash: bytes32;
+};
+
+const WithdrawalTypeApproved = 'approved';
+const WithdrawalTypePermissionLess = 'permissionless';
 
 // eslint-disable-next-line no-unused-vars
 class Placeholder extends Contract.extend(Ownable, Pausable) {
@@ -104,7 +116,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     early_withdrawal_pubkey = GlobalStateKey<bytes32>({ key: 'ewpk' });
 
     // Withdrawal requests
-    withdrawals = BoxMap<Address, WithdrawalRequest>({ prefix: 'wr' });
+    // Only one allowed at any given point
+    withdrawals = LocalStateMap<Address, PermissionlessWithdrawalRequest>({
+      maxKeys: 5
+    });
 
     // Settlement nonce
     settlement_nonce = GlobalStateKey<uint64>({ key: 'sn' });
@@ -244,6 +259,24 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     }>();
 
     /**
+     * Withdrawal Request Cancelled event
+     */
+    WithdrawalRequestCancelled = new EventLogger<{
+      /** Funding Source to withdraw from */
+      cardFund: Address;
+      /** Recipient address to withdraw to */
+      recipient: Address;
+      /** Asset to withdraw */
+      asset: AssetID;
+      /** Amount to withdraw */
+      amount: uint64;
+      /** Withdrawal Creation Timestamp */
+      createdAt: uint64;
+      /** Withdrawal nonce */
+      nonce: uint64;
+  }>();
+
+    /**
      * Withdrawal event
      */
     Withdrawal = new EventLogger<{
@@ -255,10 +288,16 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         asset: AssetID;
         /** Amount withdrawn */
         amount: uint64;
-        /** Withdrawal Creation Timestamp */
-        createdAt: uint64;
+        /**
+         * Relevant timestamp depending on the withdrawal type
+         * For permissionless withdrawal, this is the createdAt date,
+         * for approved withdrawal, this is the expiration of the request
+         * */
+        timestamp: uint64;
         /** Withdrawal nonce */
         nonce: uint64;
+        /** Withdrawal type */
+        type: string
     }>();
 
     // ========== Internal Utils ==========
@@ -315,29 +354,35 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
     }
 
-    private withdrawFunds(cardFund: Address, withdrawal: WithdrawalRequest): void {
+    private withdrawFunds(cardFund: Address, asset: AssetID, amount: uint64, timestamp: uint64, nonce: uint64, withdrawalType: string): void {
+        const assetBalance = cardFund.assetBalance(asset);
+        // if there is not enough balance, just transfer what's available
+        const withdrawAmount = amount > assetBalance ? assetBalance : amount;
+        // but it has to be bigger than zero, or the transfer would just do an opt-out
+        assert(withdrawAmount > 0, 'INSUFFICIENT_BALANCE');
         sendAssetTransfer({
             sender: cardFund,
             assetReceiver: this.txn.sender,
-            xferAsset: withdrawal.asset,
-            assetAmount: withdrawal.amount,
+            xferAsset: asset,
+            assetAmount: withdrawAmount,
         });
 
         // Emit withdrawal event
         this.Withdrawal.log({
             cardFund: cardFund,
             recipient: this.txn.sender,
-            asset: withdrawal.asset,
-            amount: withdrawal.amount,
-            createdAt: withdrawal.createdAt,
-            nonce: withdrawal.nonce
+            asset: asset,
+            amount: withdrawAmount,
+            timestamp: timestamp,
+            nonce: nonce,
+            type: withdrawalType,
         });
 
-        this.card_funds(cardFund).value.withdrawalNonce = withdrawal.nonce + 1;
+        this.card_funds(cardFund).value.withdrawalNonce = nonce + 1;
 
-        if (this.withdrawals(cardFund).exists) {
+        if (withdrawalType == WithdrawalTypePermissionLess) {
           // Delete the withdrawal request
-          this.withdrawals(cardFund).delete();
+          this.withdrawals(this.txn.sender, cardFund).delete();
         }
     }
 
@@ -495,8 +540,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     getCardFundMbr(asset: AssetID): uint64 {
         // TODO: Double check size requirement is accurate. The prefix doesn't seem right.
-        // Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce))
-        const boxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8));
+        // Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce + withdrawalNonce))
+        const boxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8));
         const assetMbr = asset ? globals.assetOptInMinBalance : 0;
         return globals.minBalance + assetMbr + boxCost;
     }
@@ -516,7 +561,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             owner: this.txn.sender,
             address: globals.zeroAddress,
             nonce: 0,
-            withdrawalNonce: 0
+            withdrawalNonce: 0,
         };
 
         verifyPayTxn(mbr, {
@@ -793,7 +838,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      * @returns The nonce for the card fund.
      */
     @abi.readonly
-    getNextCardFundWithdrawalNonce(cardFund: Address): uint64 {
+    getCardFundWithdrawalNonce(cardFund: Address): uint64 {
         return this.card_funds(cardFund).value.withdrawalNonce;
     }
 
@@ -916,30 +961,24 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     @allow.call('NoOp')
     @allow.call('OptIn')
-    cardFundWithdrawalRequest(cardFund: Address, asset: AssetID, amount: uint64): void {
+    cardFundInitPermissionlessWithdrawal(cardFund: Address, asset: AssetID, amount: uint64): PermissionlessWithdrawalRequest {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         const cardFundData = this.card_funds(cardFund).value;
 
-        const withdrawal: WithdrawalRequest = {
+        const withdrawal: PermissionlessWithdrawalRequest = {
             cardFund: cardFund,
             recipient: this.txn.sender,
             asset: asset,
             amount: amount,
             createdAt: globals.latestTimestamp,
             nonce: cardFundData.withdrawalNonce,
-            genesisHash: globals.genesisHash as bytes32
         };
 
-        this.withdrawals(cardFund).value = withdrawal;
+        this.withdrawals(this.txn.sender, cardFund).value = withdrawal;
 
-        this.WithdrawalRequest.log({
-            cardFund: cardFund,
-            recipient: this.txn.sender,
-            asset: withdrawal.asset,
-            amount: withdrawal.amount,
-            createdAt: withdrawal.createdAt,
-            nonce: cardFundData.withdrawalNonce
-        });
+        this.WithdrawalRequest.log(withdrawal);
+
+        return withdrawal;
     }
 
     /**
@@ -948,9 +987,12 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     cardFundWithdrawalCancel(cardFund: Address): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-        assert(this.withdrawals(cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND')
-        this.withdrawals(cardFund).delete();
+        assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND')
+        const withdrawal = this.withdrawals(this.txn.sender, cardFund).value;
+        this.WithdrawalRequestCancelled.log(withdrawal);
+        this.withdrawals(this.txn.sender, cardFund).delete();
     }
+
 
     /**
      * Allows the Card Holder to send an amount of assets from the account
@@ -958,37 +1000,49 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     @allow.call('NoOp')
     @allow.call('CloseOut')
-    cardFundWithdraw(cardFund: Address): void {
+    cardFundExecutePermissionlessWithdrawal(cardFund: Address, amount: uint64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-        assert(this.withdrawals(cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
+        assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
         const cardFundData = this.card_funds(cardFund).value;
-        const withdrawal = this.withdrawals(cardFund).value;
+        const withdrawal = this.withdrawals(this.txn.sender, cardFund).value;
 
         assert(cardFundData.withdrawalNonce == withdrawal.nonce, 'NONCE_INVALID');
 
         const release_time = withdrawal.createdAt + this.withdrawal_wait_time.value;
-
         assert(globals.latestTimestamp >= release_time, 'WITHDRAWAL_TIME_INVALID');
 
+        const assetBalance = cardFund.assetBalance(withdrawal.asset);
+        // if there is not enough balance, just transfer what's available
+        const withdrawAmount = amount > assetBalance ? assetBalance : amount;
+        // but it has to be bigger than zero, or the transfer would just do an opt-out
+        assert(withdrawAmount > 0, 'INSUFFICIENT_BALANCE');
+
         // Issue the withdrawal
-        this.withdrawFunds(cardFund, withdrawal);
+        this.withdrawFunds(cardFund, withdrawal.asset, withdrawAmount, withdrawal.createdAt, withdrawal.nonce, WithdrawalTypePermissionLess);
     }
 
     /**
      * Withdraws funds before the withdrawal timestamp has lapsed, by using the early withdrawal signature provided by Immersve.
      * @param cardFund - The address of the card.
-     * @param early_withdrawal_sig - The signature for early withdrawal.
+     * @param asset - The ID of the asset to be withdrawn.
+     * @param amount - The amount of the withdrawal.
+     * @param expiresAt - The expiry of the withdrawal signature.
+     * @param signature - The signature for early withdrawal.
      */
-    cardFundWithdrawEarly(cardFund: Address, asset: AssetID, amount: uint64, createdAt: uint64, early_withdrawal_sig: bytes64): void {
+    cardFundExecuteApprovedWithdrawal(cardFund: Address, asset: AssetID, amount: uint64, expiresAt: uint64, nonce: uint64, signature: bytes64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         const cardFundData = this.card_funds(cardFund).value;
-        const withdrawal: WithdrawalRequest = {
+
+        assert(globals.latestTimestamp < expiresAt, 'WITHDRAWAL_TIME_INVALID');
+        assert(cardFundData.withdrawalNonce == nonce, 'NONCE_INVALID');
+
+        const withdrawal: ApprovedWithdrawalRequest = {
           cardFund: cardFund,
           recipient: this.txn.sender,
           asset: asset,
           amount: amount,
-          createdAt: createdAt,
-          nonce: cardFundData.withdrawalNonce,
+          expiresAt: expiresAt,
+          nonce: nonce,
           genesisHash: globals.genesisHash as bytes32
         };
 
@@ -1001,11 +1055,11 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         }
 
         assert(
-            ed25519VerifyBare(withdrawal_hash, early_withdrawal_sig, this.early_withdrawal_pubkey.value),
+            ed25519VerifyBare(withdrawal_hash, signature, this.early_withdrawal_pubkey.value),
             'SIGNATURE_INVALID'
         );
 
         // Issue the withdrawal
-        this.withdrawFunds(cardFund, withdrawal);
+        this.withdrawFunds(cardFund, asset, amount, expiresAt, cardFundData.withdrawalNonce, WithdrawalTypeApproved);
     }
 }
