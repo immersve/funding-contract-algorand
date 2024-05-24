@@ -351,13 +351,15 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     }
 
     private withdrawFunds(cardFund: Address, asset: AssetID, amount: uint64, timestamp: uint64, nonce: uint64, withdrawalType: string): void {
-        assert(amount > 0, 'INSUFFICIENT_BALANCE');
-        sendAssetTransfer({
-            sender: cardFund,
-            assetReceiver: this.txn.sender,
-            xferAsset: asset,
-            assetAmount: amount,
-        });
+        // if amount is zero, we skip the asset transfer
+        if (amount > 0) {
+          sendAssetTransfer({
+              sender: cardFund,
+              assetReceiver: this.txn.sender,
+              xferAsset: asset,
+              assetAmount: amount,
+          });
+        }
 
         // Emit withdrawal event
         this.Withdrawal.log({
@@ -372,11 +374,6 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
 
         this.card_funds(cardFund).value.withdrawalNonce = nonce + 1;
-
-        if (withdrawalType == WithdrawalTypePermissionLess) {
-          // Delete the withdrawal request
-          this.withdrawals(this.txn.sender).delete();
-        }
     }
 
     private updateSettlementAddress(asset: AssetID, newSettlementAddress: Address): void {
@@ -957,6 +954,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     cardFundInitPermissionlessWithdrawal(cardFund: Address, asset: AssetID, amount: uint64): PermissionlessWithdrawalRequest {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         const cardFundData = this.card_funds(cardFund).value;
+        assert(amount <= cardFund.assetBalance(asset), 'INSUFFICIENT_BALANCE');
 
         const withdrawal: PermissionlessWithdrawalRequest = {
             cardFund: cardFund,
@@ -982,8 +980,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         assert(this.withdrawals(this.txn.sender).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND')
         const withdrawal = this.withdrawals(this.txn.sender).value;
-        this.WithdrawalRequestCancelled.log(withdrawal);
         this.withdrawals(this.txn.sender).delete();
+        this.WithdrawalRequestCancelled.log(withdrawal);
     }
 
 
@@ -1001,17 +999,12 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         assert(amount <= withdrawal.amount, 'AMOUNT_INVALID');
         assert(cardFundData.withdrawalNonce == withdrawal.nonce, 'NONCE_INVALID');
 
-        const release_time = withdrawal.createdAt + this.withdrawal_wait_time.value;
-        assert(globals.latestTimestamp >= release_time, 'WITHDRAWAL_TIME_INVALID');
-
-        const assetBalance = cardFund.assetBalance(withdrawal.asset);
-        // if there is not enough balance, just transfer what's available
-        const withdrawAmount = amount > assetBalance ? assetBalance : amount;
-        // but it has to be bigger than zero, or the transfer would just do an opt-out
-        assert(withdrawAmount > 0, 'INSUFFICIENT_BALANCE');
+        const releaseTime = withdrawal.createdAt + this.withdrawal_wait_time.value;
+        assert(globals.latestTimestamp >= releaseTime, 'WITHDRAWAL_TIME_INVALID');
 
         // Issue the withdrawal
-        this.withdrawFunds(cardFund, withdrawal.asset, withdrawAmount, withdrawal.createdAt, withdrawal.nonce, WithdrawalTypePermissionLess);
+        this.withdrawFunds(cardFund, withdrawal.asset, amount, withdrawal.createdAt, withdrawal.nonce, WithdrawalTypePermissionLess);
+        this.withdrawals(this.txn.sender).delete();
     }
 
     /**
