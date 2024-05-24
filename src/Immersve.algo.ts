@@ -286,12 +286,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         asset: AssetID;
         /** Amount withdrawn */
         amount: uint64;
-        /**
-         * Relevant timestamp depending on the withdrawal type
-         * For permissionless withdrawal, this is the createdAt date,
-         * for approved withdrawal, this is the expiration of the request
-         * */
-        timestamp: uint64;
+        /** Permissionless withdrawal creation time */
+        createdAt: uint64;
+        /** Approved withdrawal expiration time */
+        expiresAt: uint64;
         /** Withdrawal nonce */
         nonce: uint64;
         /** Withdrawal type */
@@ -353,16 +351,12 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     }
 
     private withdrawFunds(cardFund: Address, asset: AssetID, amount: uint64, timestamp: uint64, nonce: uint64, withdrawalType: string): void {
-        const assetBalance = cardFund.assetBalance(asset);
-        // if there is not enough balance, just transfer what's available
-        const withdrawAmount = amount > assetBalance ? assetBalance : amount;
-        // but it has to be bigger than zero, or the transfer would just do an opt-out
-        assert(withdrawAmount > 0, 'INSUFFICIENT_BALANCE');
+        assert(amount > 0, 'INSUFFICIENT_BALANCE');
         sendAssetTransfer({
             sender: cardFund,
             assetReceiver: this.txn.sender,
             xferAsset: asset,
-            assetAmount: withdrawAmount,
+            assetAmount: amount,
         });
 
         // Emit withdrawal event
@@ -370,8 +364,9 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             cardFund: cardFund,
             recipient: this.txn.sender,
             asset: asset,
-            amount: withdrawAmount,
-            timestamp: timestamp,
+            amount: amount,
+            createdAt: withdrawalType == WithdrawalTypePermissionLess ? timestamp : 0,
+            expiresAt: withdrawalType == WithdrawalTypeApproved ? timestamp : 0,
             nonce: nonce,
             type: withdrawalType,
         });
