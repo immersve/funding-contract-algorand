@@ -112,9 +112,6 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     // Seconds to wait
     withdrawal_wait_time = GlobalStateKey<uint64>({ key: 'wwt' });
 
-    // Early withdrawal public key
-    early_withdrawal_pubkey = GlobalStateKey<bytes32>({ key: 'ewpk' });
-
     // Withdrawal requests
     // Only one allowed at any given point
     withdrawals = LocalStateKey<PermissionlessWithdrawalRequest>({ key: 'wr' });
@@ -125,8 +122,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     // Settlement address
     settlement_address = BoxMap<AssetID, Address>({ prefix: 'sa' });
 
-    // Refund address
-    refund_address = GlobalStateKey<Address>({ key: 'ra' });
+    // Settler role address
+    settler_role_address = GlobalStateKey<Address>({ key: 'ra' });
 
     // ========== Events ==========
     /**
@@ -296,6 +293,9 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         type: string
     }>();
 
+    protected onlySettler(): void {
+      assert(this.txn.sender === this.settler_role_address.value, 'SENDER_NOT_ALLOWED');
+    }
     // ========== Internal Utils ==========
     /**
      * Check if the current transaction sender is the Card Fund holder/owner
@@ -436,16 +436,6 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         this.onlyOwner();
 
         this.withdrawal_wait_time.value = seconds;
-    }
-
-    /**
-     * Sets the early withdrawal public key.
-     * @param pubkey - The public key to set.
-     */
-    setEarlyWithdrawalPubkey(pubkey: bytes32): void {
-        this.onlyOwner();
-
-        this.early_withdrawal_pubkey.value = pubkey;
     }
 
     /**
@@ -627,23 +617,6 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     }
 
     /**
-     * Recovers funds from an old card and transfers them to a new card.
-     * Only the owner of the contract can perform this operation.
-     *
-     * @param cardFund - The card fund to recover.
-     * @param newCardFundHolder - The address of the new card holder.
-     */
-    cardFundRecover(cardFund: Address, newCardFundHolder: Address): void {
-        this.onlyOwner();
-
-        // eslint-disable-next-line no-unused-vars
-        const oldCardFundHolder = this.card_funds(cardFund).value.owner;
-        this.card_funds(cardFund).value.owner = newCardFundHolder;
-
-        // TODO: Emit CardFundRecovered
-    }
-
-    /**
      * Retrieves the minimum balance requirement for adding an asset to the allowlist.
      * @returns Minimum balance requirement for adding an asset to the allowlist
      */
@@ -717,7 +690,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     cardFundDebit(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64, ref: string): void {
         this.whenNotPaused();
-        this.onlyOwner();
+        this.onlySettler();
 
         // Ensure the nonce is correct
         const nextNonce = this.card_funds(cardFund).value.nonce;
@@ -744,25 +717,25 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     }
 
     /**
-     * Retrieves the refund address.
+     * Retrieves the settler role address.
      *
-     * @returns The refund address.
+     * @returns The settler role address.
      */
     @abi.readonly
-    getRefundAddress(): Address {
-        return this.refund_address.value;
+    getSettlerRole(): Address {
+        return this.settler_role_address.value;
     }
 
     /**
-     * Sets the refund address.
+     * Sets the settler role address.
      * Only the owner of the contract can call this method.
      *
-     * @param newRefundAddress The new refund address to be set.
+     * @param newSettlerAddress The new settler role address to be set.
      */
-    setRefundAddress(newRefundAddress: Address): void {
+    setSettlerRole(newSettlerAddress: Address): void {
         this.onlyOwner();
 
-        this.refund_address.value = newRefundAddress;
+        this.settler_role_address.value = newSettlerAddress;
     }
 
     /**
@@ -775,8 +748,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
         this.whenNotPaused();
-
-        assert(this.txn.sender === this.refund_address.value, 'SENDER_NOT_ALLOWED');
+        this.onlySettler();
 
         // Ensure the nonce is correct
         const nextNonce = this.card_funds(cardFund).value.nonce;
@@ -877,7 +849,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     settle(asset: AssetID, amount: uint64, nonce: uint64): void {
         this.whenNotPaused();
-        this.onlyOwner();
+        this.onlySettler();
 
         // Ensure the nonce is correct
         assert(this.settlement_nonce.value === nonce, 'NONCE_INVALID');
@@ -1041,7 +1013,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         }
 
         assert(
-            ed25519VerifyBare(withdrawal_hash, signature, this.early_withdrawal_pubkey.value),
+            ed25519VerifyBare(withdrawal_hash, signature, this.settler_role_address.value),
             'SIGNATURE_INVALID'
         );
 
