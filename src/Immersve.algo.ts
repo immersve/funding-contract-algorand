@@ -26,6 +26,7 @@
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 import { Pausable } from './roles/Pausable.algo';
+import { Recoverable } from './roles/Recoverable.algo';
 
 // CardFundData
 type CardFundData = {
@@ -82,7 +83,7 @@ class ControlledAddress extends Contract {
     }
 }
 
-export class Master extends Contract.extend(Ownable, Pausable) {
+export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     // ========== Storage ==========
     // Card Funds
     card_funds = BoxMap<Address, CardFundData>({ prefix: 'cf' });

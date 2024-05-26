@@ -224,6 +224,75 @@ describe('Immersve', () => {
         expect(result.confirmation!.poolError).toBe('');
     });
 
+    test('Recover Algo from Master', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
+
+        await sendTransaction(
+            {
+                transaction: algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+                    from: immersve.addr,
+                    to: appAddress,
+                    amount: 1_000_000,
+                    suggestedParams: await algod.getTransactionParams().do(),
+                }),
+                from: immersve,
+            },
+            algod
+        );
+
+        const recover = await appClient.recoverAsset(
+            {
+                amount: 1_000_000,
+                asset: 0,
+                recipient: immersve.addr,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(recover.confirmation!.poolError).toBe('');
+    });
+
+    test('Recover ASA from Master', async () => {
+        const { appAddress } = await appClient.appClient.getAppReference();
+        const { algod } = fixture.context;
+
+        await sendTransaction(
+            {
+                transaction: algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+                    from: circle.addr,
+                    to: appAddress,
+                    assetIndex: fakeUSDC,
+                    amount: 10_000_000_000,
+                    suggestedParams: await algod.getTransactionParams().do(),
+                }),
+                from: circle,
+            },
+            algod
+        );
+
+        const recover = await appClient.recoverAsset(
+            {
+                amount: 10_000_000_000,
+                asset: fakeUSDC,
+                recipient: immersve.addr,
+            },
+            {
+                sendParams: {
+                    fee: microAlgos(2_000),
+                    populateAppCallResources: true,
+                },
+            }
+        );
+
+        expect(recover.confirmation!.poolError).toBe('');
+    });
+
     test('Create new partner', async () => {
         const { appAddress } = await appClient.appClient.getAppReference();
         const { algod } = fixture.context;

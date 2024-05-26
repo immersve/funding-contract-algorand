@@ -88,6 +88,30 @@
       ]
     },
     {
+      "name": "recoverAsset",
+      "desc": "Recover an asset sent to the contract by mistake. Only the owner can call this function.",
+      "args": [
+        {
+          "name": "asset",
+          "type": "uint64",
+          "desc": "Asset ID of the asset to recover. If 0, Algo will be recovered."
+        },
+        {
+          "name": "amount",
+          "type": "uint64",
+          "desc": "Amount of the asset to recover. If Algos, remember the minimum balance requirement."
+        },
+        {
+          "name": "recipient",
+          "type": "address",
+          "desc": "Address to send the recovered asset to."
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "deploy",
       "desc": "Deploy a partner channel, setting the owner as provided",
       "args": [
