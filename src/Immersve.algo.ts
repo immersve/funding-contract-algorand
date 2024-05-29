@@ -306,10 +306,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
       assert(this.txn.sender === this.settler_role_address.value, 'SENDER_NOT_ALLOWED');
     }
 
-    public getCardFundByPartner(partnerChannel: Address): Address {
+    public getCardFundByPartner(partnerChannel: Address, cardFundOwner: Address): Address {
       const partnerCardFundOwnerKeyData: PartnerCardFundData = {
         partnerChannel: partnerChannel,
-        cardFundOwner: this.txn.sender
+        cardFundOwner: cardFundOwner
       }
       const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
       assert(this.partner_card_fund_owner(partnerCardFundOwnerKey).exists, 'CARD_FUND_NOT_FOUND');
@@ -542,7 +542,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         // Card Fund Data Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce + withdrawalNonce))
         const cardFundDataBoxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8));
         // Partner Card Fund Owner Box Cost: 2500 + 400 * (Prefix + hashed key(32 bytes) + cardFundAddress)
-        const partnerCardFundOwnerBoxCost = 2500 + 400 * (4 + 32 + 32);
+        const partnerCardFundOwnerBoxCost = 2500 + 400 * (2 + 32 + 32);
 
         const boxCost = cardFundDataBoxCost + partnerCardFundOwnerBoxCost;
         const assetMbr = asset ? globals.assetOptInMinBalance : 0;
