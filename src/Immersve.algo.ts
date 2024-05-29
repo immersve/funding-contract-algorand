@@ -37,6 +37,11 @@ type CardFundData = {
     withdrawalNonce: uint64;
 };
 
+type PartnerCardFundData = {
+  partnerChannel: Address;
+  cardFundOwner: Address;
+}
+
 // Withdrawal request for an amount of an asset, where the timestamp indicates the earliest it can be made
 type PermissionlessWithdrawalRequest = {
     cardFund: Address;
@@ -106,6 +111,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
 
     // Partner Channels
     partner_channels = BoxMap<Address, string>({ prefix: 'pc' });
+
+    // A map where the key is the partner channel address + the card fund owner address, hashed
+    // The value is the address of the cardFund the account owns
+    partner_card_fund_owner = BoxMap<bytes32, Address>({ prefix: 'co' });
 
     partner_channels_active_count = GlobalStateKey<uint64>({ key: 'pcac' });
 
@@ -295,6 +304,16 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
 
     protected onlySettler(): void {
       assert(this.txn.sender === this.settler_role_address.value, 'SENDER_NOT_ALLOWED');
+    }
+
+    public getCardFundByPartner(partnerChannel: Address): Address {
+      const partnerCardFundOwnerKeyData: PartnerCardFundData = {
+        partnerChannel: partnerChannel,
+        cardFundOwner: this.txn.sender
+      }
+      const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
+      assert(this.partner_card_fund_owner(partnerCardFundOwnerKey).exists, 'CARD_FUND_NOT_FOUND');
+      return this.partner_card_fund_owner(partnerCardFundOwnerKey).value;
     }
     // ========== Internal Utils ==========
     /**
@@ -520,8 +539,12 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     getCardFundMbr(asset: AssetID): uint64 {
         // TODO: Double check size requirement is accurate. The prefix doesn't seem right.
-        // Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce + withdrawalNonce))
-        const boxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8));
+        // Card Fund Data Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce + withdrawalNonce))
+        const cardFundDataBoxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8));
+        // Partner Card Fund Owner Box Cost: 2500 + 400 * (Prefix + hashed key(32 bytes) + cardFundAddress)
+        const partnerCardFundOwnerBoxCost = 2500 + 400 * (4 + 32 + 32);
+
+        const boxCost = cardFundDataBoxCost + partnerCardFundOwnerBoxCost;
         const assetMbr = asset ? globals.assetOptInMinBalance : 0;
         return globals.minBalance + assetMbr + boxCost;
     }
@@ -535,6 +558,12 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     cardFundCreate(mbr: PayTxn, partnerChannel: Address, asset: AssetID): Address {
         assert(this.partner_channels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
+        const partnerCardFundOwnerKeyData: PartnerCardFundData = {
+          partnerChannel: partnerChannel,
+          cardFundOwner: this.txn.sender
+        }
+        const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
+        assert(!this.partner_card_fund_owner(partnerCardFundOwnerKey).exists, 'CARD_FUND_ALREADY_EXISTS');
 
         const cardFundData: CardFundData = {
             partnerChannel: partnerChannel,
@@ -577,6 +606,9 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         // Increment active card funds
         this.card_funds_active_count.value = this.card_funds_active_count.value + 1;
 
+        // Add the card fund to the partner_card_fund_owner index map
+        this.partner_card_fund_owner(partnerCardFundOwnerKey).value = cardFundAddr;
+
         this.CardFundCreated.log({
             cardFundOwner: this.txn.sender,
             cardFund: cardFundAddr,
@@ -593,6 +625,12 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     cardFundClose(cardFund: Address): void {
         assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+        const cardFundData = this.card_funds(cardFund).value;
+        const partnerCardFundOwnerKeyData: PartnerCardFundData = {
+          partnerChannel: cardFundData.partnerChannel,
+          cardFundOwner: cardFundData.owner
+        }
+        const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
 
         sendPayment({
             sender: cardFund,
@@ -602,7 +640,10 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
 
         const cardFundSize = this.card_funds(cardFund).size;
-        const boxCost = 2500 + 400 * (1 + 32 + cardFundSize);
+        const partnerCardFundOwnerSize = this.partner_card_fund_owner(partnerCardFundOwnerKey).size;
+        const card_funds_boxCost = 2500 + 400 * (1 + 32 + cardFundSize);
+        const partner_card_fund_owner_boxCost = 2500 + 400 * (1 + 32 + partnerCardFundOwnerSize);
+        const boxCost = card_funds_boxCost + partner_card_fund_owner_boxCost;
 
         sendPayment({
             receiver: this.txn.sender,
@@ -614,6 +655,9 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
 
         // Decrement active card funds
         this.card_funds_active_count.value = this.card_funds_active_count.value - 1;
+
+        // Remove the card fund from the partner_card_fund_owner index map
+        this.partner_card_fund_owner(partnerCardFundOwnerKey).delete();
     }
 
     /**
