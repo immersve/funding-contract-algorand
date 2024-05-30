@@ -33,7 +33,7 @@ type CardFundData = {
     partnerChannel: Address;
     owner: Address;
     address: Address;
-    nonce: uint64;
+    paymentNonce: uint64;
     withdrawalNonce: uint64;
 };
 
@@ -221,6 +221,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         amount: uint64;
         /** Nonce used */
         nonce: uint64;
+        /** Transaction reference */
+        reference: string;
     }>();
 
     SettlementAddressChanged = new EventLogger<{
@@ -576,7 +578,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             partnerChannel: partnerChannel,
             owner: this.txn.sender,
             address: globals.zeroAddress,
-            nonce: 0,
+            paymentNonce: 0,
             withdrawalNonce: 0,
         };
 
@@ -685,6 +687,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     assetAllowlistAdd(mbr: PayTxn, asset: AssetID, settlementAddress: Address): void {
         this.onlyOwner();
+        assert(!this.app.address.isOptedInToAsset(asset), 'ASSET_ALREADY_OPTED_IN');
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
@@ -710,6 +713,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     assetAllowlistRemove(asset: AssetID): void {
         this.onlyOwner();
+
+        assert(this.app.address.isOptedInToAsset(asset), 'ASSET_NOT_OPTED_IN');
 
         // Asset balance must be zero to close out of it. Consider settling the asset balance before revoking it.
         sendAssetTransfer({
@@ -744,8 +749,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         this.onlySettler();
 
         // Ensure the nonce is correct
-        const nextNonce = this.cardFunds(cardFund).value.nonce;
-        assert(nextNonce === nonce, 'NONCE_INVALID');
+        const currentPaymentNonce = this.cardFunds(cardFund).value.paymentNonce;
+        assert(currentPaymentNonce === nonce, 'NONCE_INVALID');
 
         sendAssetTransfer({
             sender: cardFund,
@@ -764,7 +769,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
 
         // Increment the nonce
-        this.cardFunds(cardFund).value.nonce = nextNonce + 1;
+        this.cardFunds(cardFund).value.paymentNonce = currentPaymentNonce + 1;
     }
 
     /**
@@ -797,19 +802,20 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      * @param asset - The asset to refund.
      * @param amount - The amount of the asset to refund.
      */
-    cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64): void {
+    cardFundRefund(cardFund: Address, asset: AssetID, amount: uint64, nonce: uint64, ref: string): void {
         this.whenNotPaused();
         this.onlySettler();
 
         // Ensure the nonce is correct
-        const nextNonce = this.cardFunds(cardFund).value.nonce;
-        assert(nextNonce === nonce, 'NONCE_INVALID');
+        const currentPaymentNonce = this.cardFunds(cardFund).value.paymentNonce;
+        assert(currentPaymentNonce === nonce, 'NONCE_INVALID');
 
         sendAssetTransfer({
             sender: this.app.address,
             assetReceiver: cardFund,
             xferAsset: asset,
             assetAmount: amount,
+            note: ref
         });
 
         this.Refund.log({
@@ -817,31 +823,32 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             asset: asset,
             amount: amount,
             nonce: nonce,
+            reference: ref,
         });
 
         // Increment the nonce
-        this.cardFunds(cardFund).value.nonce = nextNonce + 1;
+        this.cardFunds(cardFund).value.paymentNonce = currentPaymentNonce + 1;
     }
 
     /**
-     * Retrieves the next available nonce for settlements.
+     * Retrieves the current available nonce for settlements.
      *
      * @returns The settlement nonce.
      */
     @abi.readonly
-    getNextSettlementNonce(): uint64 {
+    getSettlementNonce(): uint64 {
         return this.settlementNonce.value;
     }
 
     /**
-     * Retrieves the next available nonce for the card fund.
+     * Retrieves the current available nonce for the card fund.
      *
      * @param cardFund The card fund address.
      * @returns The nonce for the card fund.
      */
     @abi.readonly
-    getNextCardFundNonce(cardFund: Address): uint64 {
-        return this.cardFunds(cardFund).value.nonce;
+    getCardFundPaymentNonce(cardFund: Address): uint64 {
+        return this.cardFunds(cardFund).value.paymentNonce;
     }
 
     /**
