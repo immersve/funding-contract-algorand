@@ -38,8 +38,8 @@ type CardFundData = {
 };
 
 type PartnerCardFundData = {
-  partnerChannel: Address;
-  cardFundOwner: Address;
+    partnerChannel: Address;
+    cardFundOwner: Address;
 };
 
 // Withdrawal request for an amount of an asset, where the timestamp indicates the earliest it can be made
@@ -53,13 +53,13 @@ type PermissionlessWithdrawalRequest = {
 };
 
 type ApprovedWithdrawalRequest = {
-  cardFund: Address;
-  recipient: Address;
-  asset: AssetID;
-  amount: uint64;
-  expiresAt: uint64;
-  nonce: uint64;
-  genesisHash: bytes32;
+    cardFund: Address;
+    recipient: Address;
+    asset: AssetID;
+    amount: uint64;
+    expiresAt: uint64;
+    nonce: uint64;
+    genesisHash: bytes32;
 };
 
 const WithdrawalTypeApproved = 'approved';
@@ -266,19 +266,19 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      * Withdrawal Request Cancelled event
      */
     WithdrawalRequestCancelled = new EventLogger<{
-      /** Funding Source to withdraw from */
-      cardFund: Address;
-      /** Recipient address to withdraw to */
-      recipient: Address;
-      /** Asset to withdraw */
-      asset: AssetID;
-      /** Amount to withdraw */
-      amount: uint64;
-      /** Withdrawal Creation Timestamp */
-      createdAt: uint64;
-      /** Withdrawal nonce */
-      nonce: uint64;
-  }>();
+        /** Funding Source to withdraw from */
+        cardFund: Address;
+        /** Recipient address to withdraw to */
+        recipient: Address;
+        /** Asset to withdraw */
+        asset: AssetID;
+        /** Amount to withdraw */
+        amount: uint64;
+        /** Withdrawal Creation Timestamp */
+        createdAt: uint64;
+        /** Withdrawal nonce */
+        nonce: uint64;
+    }>();
 
     /**
      * Withdrawal event
@@ -303,17 +303,17 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     }>();
 
     protected onlySettler(): void {
-      assert(this.txn.sender === this.settlerRoleAddress.value, 'SENDER_NOT_ALLOWED');
+        assert(this.txn.sender === this.settlerRoleAddress.value, 'SENDER_NOT_ALLOWED');
     }
 
     public getCardFundByPartner(partnerChannel: Address, cardFundOwner: Address): Address {
-      const partnerCardFundOwnerKeyData: PartnerCardFundData = {
-        partnerChannel: partnerChannel,
+        const partnerCardFundOwnerKeyData: PartnerCardFundData = {
+            partnerChannel: partnerChannel,
             cardFundOwner: cardFundOwner,
         };
-      const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
-      assert(this.partnerCardFundOwner(partnerCardFundOwnerKey).exists, 'CARD_FUND_NOT_FOUND');
-      return this.partnerCardFundOwner(partnerCardFundOwnerKey).value;
+        const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
+        assert(this.partnerCardFundOwner(partnerCardFundOwnerKey).exists, 'CARD_FUND_NOT_FOUND');
+        return this.partnerCardFundOwner(partnerCardFundOwnerKey).value;
     }
     // ========== Internal Utils ==========
     /**
@@ -566,7 +566,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     cardFundCreate(mbr: PayTxn, partnerChannel: Address, asset: AssetID): Address {
         assert(this.partnerChannels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
-          partnerChannel: partnerChannel,
+            partnerChannel: partnerChannel,
             cardFundOwner: this.txn.sender,
         };
         const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
@@ -634,7 +634,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         const cardFundData = this.cardFunds(cardFund).value;
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
-          partnerChannel: cardFundData.partnerChannel,
+            partnerChannel: cardFundData.partnerChannel,
             cardFundOwner: cardFundData.owner,
         };
         const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
@@ -887,7 +887,6 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     setSettlementAddress(settlementAsset: AssetID, newSettlementAddress: Address): void {
         this.onlyOwner();
-
         this.updateSettlementAddress(settlementAsset, newSettlementAddress);
     }
 
