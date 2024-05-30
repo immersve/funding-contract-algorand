@@ -33,9 +33,13 @@ export class Pausable extends Contract {
     paused = GlobalStateKey<boolean>();
 
     // ============ Events ============
-    Pause = new EventLogger<{}>();
+    Pause = new EventLogger<{
+      sender: Address;
+    }>();
 
-    Unpause = new EventLogger<{}>();
+    Unpause = new EventLogger<{
+      sender: Address;
+    }>();
 
     PauserChanged = new EventLogger<{
         newAddress: Address;
@@ -46,14 +50,14 @@ export class Pausable extends Contract {
      * @dev Modifier to make a function callable only when the contract is not paused.
      */
     protected whenNotPaused(): void {
-        assert(!this.paused.value);
+        assert(!this.paused.value, 'CONTRACT_PAUSED');
     }
 
     /**
      * @dev throws if called by any account other than the pauser
      */
     protected onlyPauser(): void {
-        assert(this.txn.sender === this._pauser.value);
+        assert(this.txn.sender === this._pauser.value, 'SENDER_NOT_ALLOWED');
     }
 
     // ============ Read Only ============
@@ -73,7 +77,9 @@ export class Pausable extends Contract {
         this.onlyPauser();
 
         this.paused.value = true;
-        this.Pause.log({});
+        this.Pause.log({
+          sender: this.txn.sender
+        });
     }
 
     /**
@@ -83,7 +89,9 @@ export class Pausable extends Contract {
         this.onlyPauser();
 
         this.paused.value = false;
-        this.Unpause.log({});
+        this.Unpause.log({
+          sender: this.txn.sender
+        });
     }
 
     /**
