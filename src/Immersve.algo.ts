@@ -673,8 +673,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     getAssetAllowlistMbr(): uint64 {
         // Box Cost: 2500 + 400 * (Prefix + AssetID + Address)
-        const ASSET_SETTLEMENTADDRESS_COST = 2500 + 400 * (2 + 8 + 32);
-        return globals.assetOptInMinBalance + ASSET_SETTLEMENTADDRESS_COST;
+        const assetSettlementAddressCost = 2500 + 400 * (2 + 8 + 32);
+        return globals.assetOptInMinBalance + assetSettlementAddressCost;
     }
 
     /**
@@ -874,6 +874,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
      */
     @abi.readonly
     getSettlementAddress(asset: AssetID): Address {
+        assert(this.settlementAddress(asset).exists, 'SETTLEMENT_ADDRESS_NOT_FOUND');
         return this.settlementAddress(asset).value;
     }
 
@@ -904,16 +905,17 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
 
         // Ensure the nonce is correct
         assert(this.settlementNonce.value === nonce, 'NONCE_INVALID');
+        const assetReceiver = this.getSettlementAddress(asset);
 
         sendAssetTransfer({
             sender: this.app.address,
-            assetReceiver: this.settlementAddress(asset).value,
+            assetReceiver: assetReceiver,
             xferAsset: asset,
             assetAmount: amount,
         });
 
         this.Settlement.log({
-            recipient: this.settlementAddress(asset).value,
+            recipient: assetReceiver,
             asset: asset,
             amount: amount,
             nonce: nonce,
@@ -1073,7 +1075,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
           genesisHash: globals.genesisHash as bytes32,
         };
 
-        const withdrawal_hash = sha256(rawBytes(withdrawal));
+        const withdrawalHash = sha256(rawBytes(withdrawal));
 
         // Need at least 2000 Opcode budget
         // TODO: Optimise?
@@ -1081,7 +1083,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
             increaseOpcodeBudget();
         }
 
-        assert(ed25519VerifyBare(withdrawal_hash, signature, this.settlerRoleAddress.value), 'SIGNATURE_INVALID');
+        assert(ed25519VerifyBare(withdrawalHash, signature, this.settlerRoleAddress.value), 'SIGNATURE_INVALID');
 
         // Issue the withdrawal
         this.withdrawFunds(cardFund, asset, amount, expiresAt, cardFundData.withdrawalNonce, WithdrawalTypeApproved);
