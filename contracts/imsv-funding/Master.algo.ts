@@ -714,8 +714,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         this.onlySettler();
 
         // Ensure the nonce is correct
-        const currentPaymentNonce = this.cardFunds(cardFund).value.paymentNonce;
-        assert(currentPaymentNonce === nonce, 'NONCE_INVALID');
+        const expectedPaymentNonce = this.cardFunds(cardFund).value.paymentNonce + 1;
+        assert(expectedPaymentNonce === nonce, 'NONCE_INVALID');
 
         sendAssetTransfer({
             sender: cardFund,
@@ -734,7 +734,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
 
         // Increment the nonce
-        this.cardFunds(cardFund).value.paymentNonce = currentPaymentNonce + 1;
+        this.cardFunds(cardFund).value.paymentNonce = expectedPaymentNonce;
     }
 
     /**
@@ -772,8 +772,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         this.onlySettler();
 
         // Ensure the nonce is correct
-        const currentPaymentNonce = this.cardFunds(cardFund).value.paymentNonce;
-        assert(currentPaymentNonce === nonce, 'NONCE_INVALID');
+        const expectedPaymentNonce = this.cardFunds(cardFund).value.paymentNonce + 1;
+        assert(expectedPaymentNonce === nonce, 'NONCE_INVALID');
 
         sendAssetTransfer({
             sender: this.app.address,
@@ -792,7 +792,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
 
         // Increment the nonce
-        this.cardFunds(cardFund).value.paymentNonce = currentPaymentNonce + 1;
+        this.cardFunds(cardFund).value.paymentNonce = expectedPaymentNonce;
     }
 
     /**
@@ -874,8 +874,9 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         this.whenNotPaused();
         this.onlySettler();
 
+        const expectedSettlementNonce = this.settlementNonce.value + 1;
         // Ensure the nonce is correct
-        assert(this.settlementNonce.value === nonce, 'NONCE_INVALID');
+        assert(expectedSettlementNonce === nonce, 'NONCE_INVALID');
         const assetReceiver = this.getSettlementAddress(asset);
 
         sendAssetTransfer({
@@ -893,7 +894,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         });
 
         // Increment the settlement nonce
-        this.settlementNonce.value = this.settlementNonce.value + 1;
+        this.settlementNonce.value = expectedSettlementNonce;
     }
 
     /**
@@ -1034,7 +1035,8 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         const cardFundData = this.cardFunds(cardFund).value;
 
         assert(globals.latestTimestamp < expiresAt, 'WITHDRAWAL_TIME_INVALID');
-        assert(cardFundData.withdrawalNonce == nonce, 'NONCE_INVALID');
+        const expectedWithdrawalNonce = cardFundData.withdrawalNonce + 1;
+        assert(expectedWithdrawalNonce == nonce, 'NONCE_INVALID');
 
         const withdrawal: ApprovedWithdrawalRequest = {
           cardFund: cardFund,
@@ -1057,6 +1059,6 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
         assert(ed25519VerifyBare(withdrawalHash, signature, this.settlerRoleAddress.value), 'SIGNATURE_INVALID');
 
         // Issue the withdrawal
-        this.withdrawFunds(cardFund, asset, amount, expiresAt, cardFundData.withdrawalNonce, WithdrawalTypeApproved);
+        this.withdrawFunds(cardFund, asset, amount, expiresAt, nonce, WithdrawalTypeApproved);
     }
 }
