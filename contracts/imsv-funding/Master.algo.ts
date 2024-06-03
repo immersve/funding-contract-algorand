@@ -24,9 +24,9 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
 import { Contract } from '@algorandfoundation/tealscript';
-import { Ownable } from './Ownable.algo';
-import { Pausable } from './Pausable.algo';
-import { Recoverable } from './Recoverable.algo';
+import { Ownable } from './roles/Ownable.algo';
+import { Pausable } from './roles/Pausable.algo';
+import { Recoverable } from './roles/Recoverable.algo';
 import { ControlledAddress } from './ControlledAddress.algo';
 
 // CardFundData

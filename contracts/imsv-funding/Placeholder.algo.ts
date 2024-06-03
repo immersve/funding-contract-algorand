@@ -24,8 +24,8 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
 import { Contract } from '@algorandfoundation/tealscript';
-import { Ownable } from './Ownable.algo';
-import { Pausable } from './Pausable.algo';
+import { Ownable } from './roles/Ownable.algo';
+import { Pausable } from './roles/Pausable.algo';
 
 export class Placeholder extends Contract.extend(Ownable, Pausable) {
   // Updatable and destroyable placeholder contract
