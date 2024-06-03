@@ -24,9 +24,10 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
 import { Contract } from '@algorandfoundation/tealscript';
-import { Ownable } from './roles/Ownable.algo';
-import { Pausable } from './roles/Pausable.algo';
-import { Recoverable } from './roles/Recoverable.algo';
+import { Ownable } from './Ownable.algo';
+import { Pausable } from './Pausable.algo';
+import { Recoverable } from './Recoverable.algo';
+import { ControlledAddress } from './ControlledAddress.algo';
 
 // CardFundData
 type CardFundData = {
@@ -64,43 +65,6 @@ type ApprovedWithdrawalRequest = {
 
 const WithdrawalTypeApproved = 'approved';
 const WithdrawalTypePermissionLess = 'permissionless';
-
-// eslint-disable-next-line no-unused-vars
-class Placeholder extends Contract.extend(Ownable, Pausable) {
-    // Updatable and destroyable placeholder contract
-    @allow.create('NoOp')
-    deploy(): void {
-        this._transferOwnership(this.txn.sender);
-        this._pauser.value = this.txn.sender;
-    }
-
-    @allow.call('UpdateApplication')
-    update(): void {
-        assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED');
-    }
-
-    @allow.call('DeleteApplication')
-    destroy(): void {
-        assert(this.txn.sender === this.app.creator, 'SENDER_NOT_ALLOWED');
-    }
-}
-
-class ControlledAddress extends Contract {
-    /**
-     * Create a new account, rekeying it to the caller application address
-     * @returns New account address
-     */
-    @allow.create('DeleteApplication')
-    new(): Address {
-        sendPayment({
-            receiver: this.app.address,
-            amount: 0,
-            rekeyTo: globals.callerApplicationAddress,
-        });
-
-        return this.app.address;
-    }
-}
 
 export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     // ========== Storage ==========
@@ -420,6 +384,7 @@ export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
     /**
      * Deploy a partner channel, setting the owner as provided
      */
+
     @allow.create('NoOp')
     deploy(owner: Address): Address {
         this._transferOwnership(owner);
