@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * Copyright (c) 2024 Algorand Foundation
+ * Copyright (c) 2024 Immersve Limited
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +24,6 @@
 import { Contract } from '@algorandfoundation/tealscript';
 import { Ownable } from './roles/Ownable.algo';
 import { Pausable } from './roles/Pausable.algo';
-import { Recoverable } from './roles/Recoverable.algo';
 import { ControlledAddress } from './ControlledAddress.algo';
 
 // CardFundData
@@ -66,7 +63,7 @@ type ApprovedWithdrawalRequest = {
 const WithdrawalTypeApproved = 'approved';
 const WithdrawalTypePermissionLess = 'permissionless';
 
-export class Master extends Contract.extend(Ownable, Pausable, Recoverable) {
+export class Master extends Contract.extend(Ownable, Pausable) {
     // ========== Storage ==========
     // Card Funds
     cardFunds = BoxMap<Address, CardFundData>({ prefix: 'cf' });
