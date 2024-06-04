@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Immersve Limited
+ * Copyright (c) 2024 Immersve. All rights reserved.
  */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
