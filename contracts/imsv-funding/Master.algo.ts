@@ -344,7 +344,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             type: withdrawalType,
         });
 
-        this.cardFunds(cardFund).value.withdrawalNonce = nonce + 1;
+        this.cardFunds(cardFund).value.withdrawalNonce = nonce;
     }
 
     private updateSettlementAddress(asset: AssetID, newSettlementAddress: Address): void {
@@ -942,7 +942,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             asset: asset,
             amount: amount,
             createdAt: globals.latestTimestamp,
-            nonce: cardFundData.withdrawalNonce,
+            nonce: cardFundData.withdrawalNonce + 1,
         };
 
         this.withdrawals(this.txn.sender).value = withdrawal;
@@ -977,7 +977,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         const cardFundData = this.cardFunds(cardFund).value;
         const withdrawal = this.withdrawals(this.txn.sender).value;
         assert(amount <= withdrawal.amount, 'AMOUNT_INVALID');
-        assert(cardFundData.withdrawalNonce == withdrawal.nonce, 'NONCE_INVALID');
+        assert(cardFundData.withdrawalNonce + 1 == withdrawal.nonce, 'NONCE_INVALID');
 
         const releaseTime = withdrawal.createdAt + this.withdrawalWaitTime.value;
         assert(globals.latestTimestamp >= releaseTime, 'WITHDRAWAL_TIME_INVALID');
