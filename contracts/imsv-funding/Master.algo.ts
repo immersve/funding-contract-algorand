@@ -976,6 +976,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         assert(this.withdrawals(this.txn.sender).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
         const cardFundData = this.cardFunds(cardFund).value;
         const withdrawal = this.withdrawals(this.txn.sender).value;
+        assert(withdrawal.cardFund == cardFund, 'CARD_FUND_INVALID');
         assert(amount <= withdrawal.amount, 'AMOUNT_INVALID');
         assert(cardFundData.withdrawalNonce + 1 == withdrawal.nonce, 'NONCE_INVALID');
 
