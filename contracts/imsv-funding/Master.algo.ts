@@ -64,10 +64,10 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     withdrawalWaitTime = GlobalStateKey<uint64>({ key: 'wwt' });
 
     // Withdrawal requests
-    // Only 10 allowed at any given point
+    // Only 8 allowed at any given point
     withdrawals = LocalStateMap<Address, PermissionlessWithdrawalRequest>({
       prefix: 'wr',
-      maxKeys: 16
+      maxKeys: 8
     });
 
     // Settlement nonce
@@ -990,7 +990,6 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
         const cardFundData = this.cardFunds(cardFund).value;
         const withdrawal = this.withdrawals(this.txn.sender, cardFund).value;
-        assert(withdrawal.cardFund == cardFund, 'CARD_FUND_INVALID');
         assert(amount <= withdrawal.amount, 'AMOUNT_INVALID');
         assert(cardFundData.withdrawalNonce + 1 == withdrawal.nonce, 'NONCE_INVALID');
 
