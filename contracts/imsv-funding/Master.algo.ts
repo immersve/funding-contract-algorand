@@ -67,7 +67,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     // Only 10 allowed at any given point
     withdrawals = LocalStateMap<Address, PermissionlessWithdrawalRequest>({
       prefix: 'wr',
-      maxKeys: 10
+      maxKeys: 16
     });
 
     // Settlement nonce
