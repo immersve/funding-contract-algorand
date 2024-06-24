@@ -25,7 +25,6 @@ type PartnerCardFundData = {
 // Withdrawal request for an amount of an asset, where the timestamp indicates the earliest it can be made
 type PermissionlessWithdrawalRequest = {
     cardFund: Address;
-    recipient: Address;
     asset: AssetID;
     amount: uint64;
     createdAt: uint64;
@@ -65,8 +64,11 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     withdrawalWaitTime = GlobalStateKey<uint64>({ key: 'wwt' });
 
     // Withdrawal requests
-    // Only one allowed at any given point
-    withdrawals = LocalStateKey<PermissionlessWithdrawalRequest>({ key: 'wr' });
+    // Only 8 allowed at any given point
+    withdrawals = LocalStateMap<Address, PermissionlessWithdrawalRequest>({
+      prefix: 'wr',
+      maxKeys: 8
+    });
 
     // Settlement nonce
     settlementNonce = GlobalStateKey<uint64>({ key: 'sn' });
@@ -938,16 +940,21 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
         const withdrawal: PermissionlessWithdrawalRequest = {
             cardFund: cardFund,
-            recipient: this.txn.sender,
             asset: asset,
             amount: amount,
             createdAt: globals.latestTimestamp,
             nonce: cardFundData.withdrawalNonce + 1,
         };
+        this.withdrawals(this.txn.sender, cardFund).value = withdrawal;
 
-        this.withdrawals(this.txn.sender).value = withdrawal;
-
-        this.WithdrawalRequest.log(withdrawal);
+        this.WithdrawalRequest.log({
+          cardFund: cardFund,
+          recipient: this.txn.sender,
+          asset: asset,
+          amount: amount,
+          createdAt: globals.latestTimestamp,
+          nonce: cardFundData.withdrawalNonce + 1,
+        });
 
         return withdrawal;
     }
@@ -958,10 +965,17 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      */
     cardFundWithdrawalCancel(cardFund: Address): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-        assert(this.withdrawals(this.txn.sender).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
-        const withdrawal = this.withdrawals(this.txn.sender).value;
-        this.withdrawals(this.txn.sender).delete();
-        this.WithdrawalRequestCancelled.log(withdrawal);
+        assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
+        const withdrawalRequest = this.withdrawals(this.txn.sender, cardFund).value;
+        this.withdrawals(this.txn.sender, cardFund).delete();
+        this.WithdrawalRequestCancelled.log({
+          cardFund: withdrawalRequest.cardFund,
+          recipient: this.txn.sender,
+          asset: withdrawalRequest.asset,
+          amount: withdrawalRequest.amount,
+          createdAt: withdrawalRequest.createdAt,
+          nonce: withdrawalRequest.nonce,
+        });
     }
 
 
@@ -973,9 +987,9 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     @allow.call('CloseOut')
     cardFundExecutePermissionlessWithdrawal(cardFund: Address, amount: uint64): void {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
-        assert(this.withdrawals(this.txn.sender).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
+        assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
         const cardFundData = this.cardFunds(cardFund).value;
-        const withdrawal = this.withdrawals(this.txn.sender).value;
+        const withdrawal = this.withdrawals(this.txn.sender, cardFund).value;
         assert(amount <= withdrawal.amount, 'AMOUNT_INVALID');
         assert(cardFundData.withdrawalNonce + 1 == withdrawal.nonce, 'NONCE_INVALID');
 
@@ -991,7 +1005,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             withdrawal.nonce,
             WithdrawalTypePermissionLess
         );
-        this.withdrawals(this.txn.sender).delete();
+        this.withdrawals(this.txn.sender, cardFund).delete();
     }
 
     /**
