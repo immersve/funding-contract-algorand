@@ -17,6 +17,11 @@ type CardFundData = {
     withdrawalNonce: uint64;
 };
 
+type PartnerChannelData = {
+  partnerChannelName: string;
+  owner: Address;
+};
+
 type PartnerCardFundData = {
     partnerChannel: Address;
     cardFundOwner: Address;
@@ -52,7 +57,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     cardFundsActiveCount = GlobalStateKey<uint64>({ key: 'cfac' });
 
     // Partner Channels
-    partnerChannels = BoxMap<Address, string>({ prefix: 'pc' });
+    partnerChannels = BoxMap<Address, PartnerChannelData>({ prefix: 'pc' });
 
     // A map where the key is the partner channel address + the card fund owner address, hashed
     // The value is the address of the cardFund the account owns
@@ -418,8 +423,9 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @returns The minimum balance requirement for creating a partner channel account.
      */
     getPartnerChannelMbr(partnerChannelName: string): uint64 {
-        const boxCost = 2500 + 400 * (3 + 32 + len(partnerChannelName));
-        return globals.minBalance + globals.minBalance + boxCost;
+        // Partner Channel Data Box Cost: 2500 + 400 * (Prefix + Address + partnerChannelName + owner)
+        const partnerChannelDataBoxCost = 2500 + 400 * (2 + 32 + len(partnerChannelName) + 32 );
+        return globals.minBalance + globals.minBalance + partnerChannelDataBoxCost;
     }
 
     /**
@@ -449,7 +455,11 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             amount: globals.minBalance,
         });
 
-        this.partnerChannels(partnerChannelAddr).value = partnerChannelName;
+        const partnerChannelData: PartnerChannelData = {
+          partnerChannelName: partnerChannelName,
+          owner: this.txn.sender
+        }
+        this.partnerChannels(partnerChannelAddr).value = partnerChannelData;
 
         // Increment active partner channels
         this.partnerChannelsActiveCount.value = this.partnerChannelsActiveCount.value + 1;
@@ -463,7 +473,10 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     }
 
     partnerChannelClose(partnerChannel: Address): void {
-        this.onlyOwner();
+        assert(this.partnerChannels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
+        const partnerChannelData = this.partnerChannels(partnerChannel).value;
+        // only partner channel owner can close it
+        assert(partnerChannelData.owner === this.txn.sender, 'SENDER_NOT_ALLOWED');
 
         sendPayment({
             sender: partnerChannel,
@@ -579,7 +592,8 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @param cardFund Address to close
      */
     cardFundClose(cardFund: Address): void {
-        assert(this.isOwner() || this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
+        // only card fund owner can close it
+        assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         const cardFundData = this.cardFunds(cardFund).value;
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
             partnerChannel: cardFundData.partnerChannel,
