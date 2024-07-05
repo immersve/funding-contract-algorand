@@ -582,7 +582,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
     /**
      * Retrieves the minimum balance requirement for creating a card fund account.
-     *
+     * @param reference client reference to store on the Card Fund.
      * @returns Minimum balance requirement for creating a card fund account
      */
     getCardFundBoxMbr(reference: string): uint64 {
