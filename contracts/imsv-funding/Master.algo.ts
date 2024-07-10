@@ -15,6 +15,7 @@ type CardFundData = {
     address: Address;
     paymentNonce: uint64;
     withdrawalNonce: uint64;
+    ref: bytes64;
 };
 
 type PartnerChannelData = {
@@ -105,6 +106,8 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         cardFund: Address;
         /** Partner Channel */
         partnerChannel: Address;
+        /** External ref */
+        ref: bytes64;
     }>();
 
     /**
@@ -506,9 +509,9 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @returns Minimum balance requirement for creating a card fund account
      */
     getCardFundMbr(asset: AssetID): uint64 {
-        // TODO: Double check size requirement is accurate. The prefix doesn't seem right.
-        // Card Fund Data Box Cost: 2500 + 400 * (Prefix + Address + (partnerChannel + owner + address + nonce + withdrawalNonce))
-        const cardFundDataBoxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8));
+        // Card Fund Data Box Cost: 2500 + 400 * (Prefix + Address +
+        // (partnerChannel + owner + address + nonce + withdrawalNonce + ref))
+        const cardFundDataBoxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8 + 64));
         // Partner Card Fund Owner Box Cost: 2500 + 400 * (Prefix + hashed key(32 bytes) + cardFundAddress)
         const partnerCardFundOwnerBoxCost = 2500 + 400 * (2 + 32 + 32);
 
@@ -522,9 +525,10 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @param mbr Payment transaction of minimum balance requirement
      * @param partnerChannel Funding Channel name
      * @param asset Asset to opt-in to. 0 = No asset opt-in
+     * @param ref client reference to store on the Card Fund.
      * @returns Newly generated account used by their card
      */
-    cardFundCreate(mbr: PayTxn, partnerChannel: Address, asset: AssetID): Address {
+    cardFundCreate(mbr: PayTxn, partnerChannel: Address, asset: AssetID, ref: bytes64): Address {
         assert(this.partnerChannels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
             partnerChannel: partnerChannel,
@@ -539,6 +543,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             address: globals.zeroAddress,
             paymentNonce: 0,
             withdrawalNonce: 0,
+            ref: ref,
         };
 
         verifyPayTxn(mbr, {
@@ -581,6 +586,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             cardFundOwner: this.txn.sender,
             cardFund: cardFundAddr,
             partnerChannel: partnerChannel,
+            ref: ref
         });
 
         // Return the new account address
