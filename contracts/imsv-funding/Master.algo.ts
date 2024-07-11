@@ -281,6 +281,12 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         assert(this.txn.sender === this.settlerRoleAddress.value, 'SENDER_NOT_ALLOWED');
     }
 
+	/**
+	 * Find an active card fund address by partner channel and card fund owner.
+	 * This will not return card funds that have not completed the deployment
+	 * process, which can be identified by looking at the local state of an
+	 * account and decoding the `CardFundSetup` values.
+	 */
     public getCardFundByPartner(partnerChannel: Address, cardFundOwner: Address): Address {
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
             partnerChannel: partnerChannel,
@@ -290,6 +296,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         assert(this.partnerCardFundOwner(partnerCardFundOwnerKey).exists, 'CARD_FUND_NOT_FOUND');
         return this.partnerCardFundOwner(partnerCardFundOwnerKey).value;
     }
+
     // ========== Internal Utils ==========
     /**
      * Check if the current transaction sender is the Card Fund holder/owner
@@ -442,6 +449,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
     /**
      * Retrieves the minimum balance requirement for creating a partner channel account.
+	 *
      * @param partnerChannelName - The name of the partner channel.
      * @returns The minimum balance requirement for creating a partner channel account.
      */
@@ -456,7 +464,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * This account is not yet active and requires the partner channel owner to complete the setup.
      * Caller must be opted-in to the application for this call.
      *
-     * @param mbr - The minimum balance requirement for creating a partner channel account.
+     * @param mbr - The minimum balance requirement for creating an account. Currency 0.1 Algo, but may change with Algorand consensus.
      * @param partnerChannelName - The name of the partner channel. Max length is 32 characters.
      * @returns The address of the newly created partner channel account.
      */
@@ -498,7 +506,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * Only the initiator of the partner channel account can complete this process.
      * Caller may close out during this call.
      *
-     * @param mbr - The minimum balance requirement for storing the partner channel data.
+     * @param mbr - The minimum balance requirement for storing the partner channel data. Use `getPartnerChannelMbr()`.
      * @param partnerChannelAddr - The address of the partner channel account, created with `partnerChannelInit`.
      */
     @allow.call('NoOp')
@@ -593,7 +601,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * This account is not yet active and requires the card fund owner to complete the setup.
      * Caller must be opted-in to the application for this call.
      *
-     * @param mbr - The minimum balance requirement for creating a card fund account.
+     * @param mbr - The minimum balance requirement for creating an account. Currently 0.1 Algo, with an additional 0.1 Algo to optin to an ASA.
      * @param partnerChannel - The address of the partner channel.
      * @param asset - Asset to opt-in to. 0 = No asset opt-in
      * @param ref - Client reference to store on the Card Fund
@@ -654,7 +662,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * Only the initiator of the card fund account can complete this process.
      * Caller may close out during this call.
      *
-     * @param mbr - The minimum balance requirement for storing the card fund data.
+     * @param mbr - The minimum balance requirement for storing the card fund data. Use `getCardFundMbr()`.
      * @param cardFundAddr - The address of the card fund account.
      * @returns Card fund address
      */
