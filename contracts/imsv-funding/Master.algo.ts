@@ -449,14 +449,13 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
     /**
      * Retrieves the minimum balance requirement for creating a partner channel account.
-	 *
      * @param partnerChannelName - The name of the partner channel.
      * @returns The minimum balance requirement for creating a partner channel account.
      */
     getPartnerChannelMbr(partnerChannelName: string): uint64 {
-        // Partner Channel Data Box Cost: 2500 + 400 * (Prefix + Address + (ABI encoded partnerChannelName) + Address + Address)
-        const partnerChannelDataBoxCost = 2500 + 400 * (2 + 32 + (4 + partnerChannelName.length) + 32 + 32 );
-        return partnerChannelDataBoxCost;
+        // Partner Channel Data Box Cost:
+        // 2500 + 400 * ((Prefix + Address) + (ABIHead + Address + Address + (ABI encoded partnerChannelName)))
+        return 2500 + 400 * ((2 + 32) + (2 + 32 + 32 +(2 + partnerChannelName.length)));
     }
 
     /**
@@ -586,14 +585,14 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @returns Minimum balance requirement for creating a card fund account
      */
     getCardFundMbr(ref: string): uint64 {
-        // Card Fund Data Box Cost: 2500 + 400 * (Prefix + Address +
-        // (partnerChannel + owner + address + nonce + withdrawalNonce + (abi encoding reference)))
-        const cardFundDataBoxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8 + (4 + ref.length)));
-        // Partner Card Fund Owner Box Cost: 2500 + 400 * (Prefix + hashed key(32 bytes) + cardFundAddress)
+        // Card Fund Data Box Cost:
+        // 2500 + 400 * ((Prefix + Address) + ((partnerChannel + owner + address + nonce + withdrawalNonce + (ABIHead + (ABI encoded reference)))))
+        const cardFundDataBoxCost = 2500 + 400 * ((2 + 32) + ((32 + 32 + 32 + 8 + 8 + (2 + (2 + ref.length)))));
+        // Partner Card Fund Owner Box Cost:
+        // 2500 + 400 * ((Prefix + hashed key(32 bytes)) + (cardFundAddress))
         const partnerCardFundOwnerBoxCost = 2500 + 400 * (2 + 32 + 32);
 
-        const boxCost = cardFundDataBoxCost + partnerCardFundOwnerBoxCost;
-        return boxCost;
+        return cardFundDataBoxCost + partnerCardFundOwnerBoxCost;
     }
 
     /**
