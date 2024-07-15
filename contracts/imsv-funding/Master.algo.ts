@@ -11,7 +11,6 @@ import { ControlledAddress } from './ControlledAddress.algo';
 // In Progress Card Fund
 type CardFundSetup = {
     partnerChannel: Address;
-    reference: string;
 };
 
 // In Progress Partner Channel
@@ -26,7 +25,7 @@ type CardFundData = {
     address: Address;
     paymentNonce: uint64;
     withdrawalNonce: uint64;
-    reference: string;
+    reference: bytes64;
 };
 
 // Active Partner Channel
@@ -69,7 +68,7 @@ const WithdrawalTypePermissionLess = 'permissionless';
 export class Master extends Contract.extend(Ownable, Pausable) {
     // ========== Storage ==========
     // Card Funds
-    cardFundsSetup = LocalStateMap<Address, CardFundSetup>({ prefix: 'cfs', maxKeys: 1 });
+    cardFundsSetup = LocalStateMap<Address, CardFundSetup>({ maxKeys: 1 });
 
     cardFunds = BoxMap<Address, CardFundData>({ prefix: 'cf' });
 
@@ -127,7 +126,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         /** Partner Channel */
         partnerChannel: Address;
         /** External ref */
-        reference: string;
+        reference: bytes64;
     }>();
 
     /**
@@ -581,13 +580,12 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     /**
      * Retrieves the minimum balance requirement for creating a card fund account.
      *
-     * @param ref - Client reference to store on the Card Fund
      * @returns Minimum balance requirement for creating a card fund account
      */
-    getCardFundMbr(ref: string): uint64 {
+    getCardFundMbr(): uint64 {
         // Card Fund Data Box Cost:
         // 2500 + 400 * ((Prefix + Address) + ((partnerChannel + owner + address + nonce + withdrawalNonce + (ABIHead + (ABI encoded reference)))))
-        const cardFundDataBoxCost = 2500 + 400 * ((2 + 32) + ((32 + 32 + 32 + 8 + 8 + (2 + (2 + ref.length)))));
+        const cardFundDataBoxCost = 2500 + 400 * ((2 + 32) + ((32 + 32 + 32 + 8 + 8 + (2 + (2 + 64)))));
         // Partner Card Fund Owner Box Cost:
         // 2500 + 400 * ((Prefix + hashed key(32 bytes)) + (cardFundAddress))
         const partnerCardFundOwnerBoxCost = 2500 + 400 * (2 + 32 + 32);
@@ -603,12 +601,11 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @param mbr - The minimum balance requirement for creating an account. Currently 0.1 Algo, with an additional 0.1 Algo to optin to an ASA.
      * @param partnerChannel - The address of the partner channel.
      * @param asset - Asset to opt-in to. 0 = No asset opt-in
-     * @param ref - Client reference to store on the Card Fund
      * @returns Newly generated account used by the card fund
      */
     @allow.call('NoOp')
     @allow.call('OptIn')
-    cardFundDeployInit(mbr: PayTxn, partnerChannel: Address, asset: AssetID, ref: string): Address {
+    cardFundDeployInit(mbr: PayTxn, partnerChannel: Address, asset: AssetID): Address {
         assert(this.partnerChannels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
 
         // Only a single partner channel card fund is allowed per account
@@ -618,9 +615,6 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         };
         const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
         assert(!this.partnerCardFundOwner(partnerCardFundOwnerKey).exists, 'CARD_FUND_ALREADY_EXISTS');
-
-        // Check the card fund reference length
-        assert(ref.length <= MaxCardFundReferenceLength, 'CARD_FUND_REFERENCE_TOO_LONG');
 
         const assetMbr = asset ? globals.assetOptInMinBalance : 0;
         verifyPayTxn(mbr, {
@@ -647,11 +641,10 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         }
 
         // Store the card fund setup data in the callers local state
-        const cardFundData: CardFundSetup = {
-            partnerChannel: partnerChannel,
-            reference: ref,
+        const cardFundSetupData: CardFundSetup = {
+            partnerChannel: partnerChannel
         };
-        this.cardFundsSetup(this.txn.sender, cardFundAddr).value = cardFundData;
+        this.cardFundsSetup(this.txn.sender, cardFundAddr).value = cardFundSetupData;
 
         return cardFundAddr;
     }
@@ -663,12 +656,16 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      *
      * @param mbr - The minimum balance requirement for storing the card fund data. Use `getCardFundMbr()`.
      * @param cardFundAddr - The address of the card fund account.
+     * @param ref - Client reference to store on the Card Fund
      * @returns Card fund address
      */
     @allow.call('NoOp')
     @allow.call('CloseOut')
-    cardFundDeployComplete(mbr: PayTxn, cardFundAddr: Address): Address {
+    cardFundDeployComplete(mbr: PayTxn, cardFundAddr: Address, ref: bytes64): Address {
         assert(this.cardFundsSetup(this.txn.sender, cardFundAddr).exists, 'CARD_FUND_NOT_FOUND');
+
+        // Check the card fund reference length
+        assert(ref.length <= MaxCardFundReferenceLength, 'CARD_FUND_REFERENCE_TOO_LONG');
 
         // Retrieve the card fund setup data from callers local state
         const cardFundSetup = this.cardFundsSetup(this.txn.sender, cardFundAddr).value;
@@ -683,7 +680,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: this.getCardFundMbr(cardFundSetup.reference),
+            amount: this.getCardFundMbr(),
         });
 
         // Sanity check. Make sure the partner channel address is still controlled by the current application.
@@ -695,7 +692,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             address: cardFundAddr,
             paymentNonce: 0,
             withdrawalNonce: 0,
-            reference: cardFundSetup.reference,
+            reference: ref,
         };
 
         // Store new card along with Card Holder
@@ -711,7 +708,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             cardFundOwner: this.txn.sender,
             cardFund: cardFundAddr,
             partnerChannel: cardFundSetup.partnerChannel,
-            reference: cardFundSetup.reference,
+            reference: ref,
         });
 
         // Delete the card fund setup data from the callers local state
@@ -743,7 +740,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             closeRemainderTo: this.txn.sender,
         });
 
-        const boxCost = this.getCardFundMbr(cardFundData.reference);
+        const boxCost = this.getCardFundMbr();
 
         sendPayment({
             receiver: this.txn.sender,
