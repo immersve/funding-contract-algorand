@@ -8,21 +8,35 @@ import { Ownable } from './roles/Ownable.algo';
 import { Pausable } from './roles/Pausable.algo';
 import { ControlledAddress } from './ControlledAddress.algo';
 
-// CardFundData
+// In Progress Card Fund
+type CardFundSetup = {
+    partnerChannel: Address;
+    reference: string;
+};
+
+// In Progress Partner Channel
+type PartnerChannelSetup = {
+    partnerChannelName: string;
+};
+
+// Active Card Fund
 type CardFundData = {
     partnerChannel: Address;
     owner: Address;
     address: Address;
     paymentNonce: uint64;
     withdrawalNonce: uint64;
-    ref: bytes64;
+    reference: string;
 };
 
+// Active Partner Channel
 type PartnerChannelData = {
-  partnerChannelName: string;
-  owner: Address;
+    partnerChannelName: string;
+    owner: Address;
+    address: Address;
 };
 
+// Active Partner Channel + Card Fund Owner
 type PartnerCardFundData = {
     partnerChannel: Address;
     cardFundOwner: Address;
@@ -47,17 +61,24 @@ type ApprovedWithdrawalRequest = {
     genesisHash: bytes32;
 };
 
+const MaxPartnerChannelNameLength = 32;
+// maximum size of local state key value pair is 128 bytes
+const MaxCardFundReferenceLength = 62;
 const WithdrawalTypeApproved = 'approved';
 const WithdrawalTypePermissionLess = 'permissionless';
 
 export class Master extends Contract.extend(Ownable, Pausable) {
     // ========== Storage ==========
     // Card Funds
+    cardFundsSetup = LocalStateMap<Address, CardFundSetup>({ maxKeys: 1 });
+
     cardFunds = BoxMap<Address, CardFundData>({ prefix: 'cf' });
 
     cardFundsActiveCount = GlobalStateKey<uint64>({ key: 'cfac' });
 
     // Partner Channels
+    partnerChannelsSetup = LocalStateMap<Address, PartnerChannelSetup>({ prefix: 'pcs', maxKeys: 1 });
+
     partnerChannels = BoxMap<Address, PartnerChannelData>({ prefix: 'pc' });
 
     // A map where the key is the partner channel address + the card fund owner address, hashed
@@ -107,7 +128,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         /** Partner Channel */
         partnerChannel: Address;
         /** External ref */
-        ref: bytes64;
+        reference: string;
     }>();
 
     /**
@@ -261,6 +282,12 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         assert(this.txn.sender === this.settlerRoleAddress.value, 'SENDER_NOT_ALLOWED');
     }
 
+	/**
+	 * Find an active card fund address by partner channel and card fund owner.
+	 * This will not return card funds that have not completed the deployment
+	 * process, which can be identified by looking at the local state of an
+	 * account and decoding the `CardFundSetup` values.
+	 */
     public getCardFundByPartner(partnerChannel: Address, cardFundOwner: Address): Address {
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
             partnerChannel: partnerChannel,
@@ -270,6 +297,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         assert(this.partnerCardFundOwner(partnerCardFundOwnerKey).exists, 'CARD_FUND_NOT_FOUND');
         return this.partnerCardFundOwner(partnerCardFundOwnerKey).value;
     }
+
     // ========== Internal Utils ==========
     /**
      * Check if the current transaction sender is the Card Fund holder/owner
@@ -354,7 +382,8 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             type: withdrawalType,
         });
 
-        this.cardFunds(cardFund).value.withdrawalNonce = nonce;
+        const nonceValue = this.cardFunds(cardFund).value
+        nonceValue.withdrawalNonce = nonce;
     }
 
     private updateSettlementAddress(asset: AssetID, newSettlementAddress: Address): void {
@@ -425,24 +454,27 @@ export class Master extends Contract.extend(Ownable, Pausable) {
      * @param partnerChannelName - The name of the partner channel.
      * @returns The minimum balance requirement for creating a partner channel account.
      */
-    getPartnerChannelMbr(partnerChannelName: string): uint64 {
-        // Partner Channel Data Box Cost: 2500 + 400 * (Prefix + Address + partnerChannelName + owner)
-        const partnerChannelDataBoxCost = 2500 + 400 * (2 + 32 + len(partnerChannelName) + 32 );
-        return globals.minBalance + globals.minBalance + partnerChannelDataBoxCost;
+    getPartnerChannelBoxMbr(partnerChannelName: string): uint64 {
+        // Partner Channel Data Box Cost:
+        // 2500 + 400 * ((Prefix + Address) + (ABIHead + Address + Address + (ABI encoded partnerChannelName)))
+        return 2500 + 400 * ((2 + 32) + (2 + 32 + 32 +(2 + partnerChannelName.length)));
     }
 
     /**
-     * Creates a partner channel account and associates it with the provided partner channel name.
-     * Only the owner of the contract can call this function.
+     * Deploys a new partner channel account and associates it with the provided partner channel name.
+     * This account is not yet active and requires the partner channel owner to complete the setup.
+     * Caller must be opted-in to the application for this call.
      *
-     * @param mbr - The PayTxn object representing the payment transaction.
-     * @param partnerChannelName - The name of the partner channel.
+     * @param mbr - The minimum balance requirement for creating an account. Currency 0.1 Algo, but may change with Algorand consensus.
+     * @param partnerChannelName - The name of the partner channel. Max length is 32 characters.
      * @returns The address of the newly created partner channel account.
      */
-    partnerChannelCreate(mbr: PayTxn, partnerChannelName: string): Address {
+    @allow.call('NoOp')
+    @allow.call('OptIn')
+    partnerChannelDeployInit(mbr: PayTxn, partnerChannelName: string): Address {
         verifyPayTxn(mbr, {
             receiver: this.app.address,
-            amount: this.getPartnerChannelMbr(partnerChannelName),
+            amount: globals.minBalance,
         });
 
         // Create a new account
@@ -458,23 +490,69 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             amount: globals.minBalance,
         });
 
+        // Check the partner channel name length
+        assert(partnerChannelName.length <= MaxPartnerChannelNameLength, 'PARTNER_CHANNEL_NAME_TOO_LONG')
+
+        // Store the partner channel setup data in the callers local state
+        const partnerChannelData: PartnerChannelSetup = {
+            partnerChannelName: partnerChannelName,
+        };
+        this.partnerChannelsSetup(this.txn.sender, partnerChannelAddr).value = partnerChannelData;
+
+        return partnerChannelAddr;
+    }
+
+    /**
+     * Completes the creation of a partner channel account.
+     * Only the initiator of the partner channel account can complete this process.
+     * Caller may close out during this call.
+     *
+     * @param mbr - The minimum balance requirement for storing the partner channel data. Use `getPartnerChannelMbr()`.
+     * @param partnerChannelAddr - The address of the partner channel account, created with `partnerChannelInit`.
+     */
+    @allow.call('NoOp')
+    @allow.call('CloseOut')
+    partnerChannelDeployComplete(mbr: PayTxn, partnerChannelAddr: Address): Address {
+        assert(this.partnerChannelsSetup(this.txn.sender, partnerChannelAddr).exists, 'PARTNER_CHANNEL_NOT_FOUND');
+
+        // Retrieve the partner channel setup data from callers local state
+        const partnerChannelSetup = this.partnerChannelsSetup(this.txn.sender, partnerChannelAddr).value;
+
+        verifyPayTxn(mbr, {
+            receiver: this.app.address,
+            amount: this.getPartnerChannelBoxMbr(partnerChannelSetup.partnerChannelName),
+        });
+
+        // Sanity check. Make sure the partner channel address is still controlled by the current application.
+        assert(partnerChannelAddr.authAddr === globals.currentApplicationAddress, 'INVALID_PARTNER_ADDRESS')
+
+        // Store the partner channel data in the box
         const partnerChannelData: PartnerChannelData = {
-          partnerChannelName: partnerChannelName,
-          owner: this.txn.sender
-        }
+            partnerChannelName: partnerChannelSetup.partnerChannelName,
+            owner: this.txn.sender,
+            address: partnerChannelAddr,
+        };
         this.partnerChannels(partnerChannelAddr).value = partnerChannelData;
+
+        // Delete the partner channel data from the callers local state
+        this.partnerChannelsSetup(this.txn.sender, partnerChannelAddr).delete();
 
         // Increment active partner channels
         this.partnerChannelsActiveCount.value = this.partnerChannelsActiveCount.value + 1;
 
         this.PartnerChannelCreated.log({
             partnerChannel: partnerChannelAddr,
-            partnerChannelName: partnerChannelName,
+            partnerChannelName: partnerChannelData.partnerChannelName,
         });
 
         return partnerChannelAddr;
     }
 
+    /**
+     * Close partner channel account. This permanently removes the rekey and deletes the account from the ledger
+     *
+     * @param partnerChannel Address to close
+     */
     partnerChannelClose(partnerChannel: Address): void {
         assert(this.partnerChannels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
         const partnerChannelData = this.partnerChannels(partnerChannel).value;
@@ -488,8 +566,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             closeRemainderTo: this.txn.sender,
         });
 
-        const partnerChannelSize = this.partnerChannels(partnerChannel).size;
-        const boxCost = 2500 + 400 * (3 + 32 + partnerChannelSize);
+        const boxCost = this.getPartnerChannelBoxMbr(partnerChannelData.partnerChannelName);
 
         sendPayment({
             receiver: this.txn.sender,
@@ -505,31 +582,40 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
     /**
      * Retrieves the minimum balance requirement for creating a card fund account.
-     * @param asset Asset to opt-in to. 0 = No asset opt-in
+     *
      * @returns Minimum balance requirement for creating a card fund account
      */
-    getCardFundMbr(asset: AssetID): uint64 {
-        // Card Fund Data Box Cost: 2500 + 400 * (Prefix + Address +
-        // (partnerChannel + owner + address + nonce + withdrawalNonce + ref))
-        const cardFundDataBoxCost = 2500 + 400 * (3 + 32 + (32 + 32 + 32 + 8 + 8 + 64));
-        // Partner Card Fund Owner Box Cost: 2500 + 400 * (Prefix + hashed key(32 bytes) + cardFundAddress)
+    getCardFundBoxMbr(reference: string): uint64 {
+        // Card Fund Data Box Cost:
+        // 2500 + 400 * ((Prefix + Address) + ((partnerChannel + owner + address + nonce + withdrawalNonce + (ABIHead + (ABI encoded reference)))))
+        const cardFundDataBoxCost = 2500 + 400 * ((2 + 32) + ((32 + 32 + 32 + 8 + 8 + (2 + (2 + reference.length)))));
+        // Partner Card Fund Owner Box Cost:
+        // 2500 + 400 * ((Prefix + hashed key(32 bytes)) + (cardFundAddress))
         const partnerCardFundOwnerBoxCost = 2500 + 400 * (2 + 32 + 32);
 
-        const boxCost = cardFundDataBoxCost + partnerCardFundOwnerBoxCost;
-        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
-        return globals.minBalance + assetMbr + boxCost;
+        return cardFundDataBoxCost + partnerCardFundOwnerBoxCost;
     }
 
     /**
-     * Create account. This generates a brand new account and funds the minimum balance requirement
-     * @param mbr Payment transaction of minimum balance requirement
-     * @param partnerChannel Funding Channel name
-     * @param asset Asset to opt-in to. 0 = No asset opt-in
-     * @param ref client reference to store on the Card Fund.
-     * @returns Newly generated account used by their card
+     * Deploys a new card fund account and associates it with the provided partner channel.
+     * This account is not yet active and requires the card fund owner to complete the setup.
+     * Caller must be opted-in to the application for this call.
+     *
+     * @param accountMbr - The minimum balance requirement for creating an account. Currently 0.1 Algo, with an additional 0.1 Algo to optin to an ASA.
+     * @param partnerChannel - The address of the partner channel.
+     * @param asset - Asset to opt-in to. 0 = No asset opt-in
+     * @param reference - Client reference to store on the Card Fund
+     * @returns Newly generated account used by the card fund
      */
-    cardFundCreate(mbr: PayTxn, partnerChannel: Address, asset: AssetID, ref: bytes64): Address {
+    @allow.call('NoOp')
+    @allow.call('OptIn')
+    cardFundDeployInit(accountMbr: PayTxn, partnerChannel: Address, asset: AssetID, reference: string): Address {
         assert(this.partnerChannels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
+
+        // Check the card fund reference length
+        assert(reference.length <= MaxCardFundReferenceLength, 'CARD_FUND_REFERENCE_TOO_LONG');
+
+        // Only a single partner channel card fund is allowed per account
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
             partnerChannel: partnerChannel,
             cardFundOwner: this.txn.sender,
@@ -537,18 +623,10 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
         assert(!this.partnerCardFundOwner(partnerCardFundOwnerKey).exists, 'CARD_FUND_ALREADY_EXISTS');
 
-        const cardFundData: CardFundData = {
-            partnerChannel: partnerChannel,
-            owner: this.txn.sender,
-            address: globals.zeroAddress,
-            paymentNonce: 0,
-            withdrawalNonce: 0,
-            ref: ref,
-        };
-
-        verifyPayTxn(mbr, {
+        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
+        verifyPayTxn(accountMbr, {
             receiver: this.app.address,
-            amount: this.getCardFundMbr(asset),
+            amount: globals.minBalance + assetMbr,
         });
 
         // Create a new account
@@ -558,11 +636,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             clearStateProgram: ControlledAddress.clearProgram(),
         });
 
-        // Update the card fund data with the newly generated address
-        cardFundData.address = cardFundAddr;
-
         // Fund the account with a minimum balance
-        const assetMbr = asset ? globals.assetOptInMinBalance : 0;
         sendPayment({
             receiver: cardFundAddr,
             amount: globals.minBalance + assetMbr,
@@ -572,6 +646,58 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         if (asset) {
             this.cardFundAssetOptIn(cardFundAddr, asset);
         }
+
+        // Store the card fund setup data in the callers local state
+        const cardFundSetupData: CardFundSetup = {
+            partnerChannel: partnerChannel,
+            reference: reference,
+        };
+        this.cardFundsSetup(this.txn.sender, cardFundAddr).value = cardFundSetupData;
+
+        return cardFundAddr;
+    }
+
+    /**
+     * Completes the creation of a card fund account.
+     * Only the initiator of the card fund account can complete this process.
+     * Caller may close out during this call.
+     *
+     * @param boxMbr - The minimum balance requirement for storing the card fund data. Use `getCardFundMbr()`.
+     * @param cardFundAddr - The address of the card fund account.
+     * @returns Card fund address
+     */
+    @allow.call('NoOp')
+    @allow.call('CloseOut')
+    cardFundDeployComplete(boxMbr: PayTxn, cardFundAddr: Address): Address {
+        assert(this.cardFundsSetup(this.txn.sender, cardFundAddr).exists, 'CARD_FUND_NOT_FOUND');
+
+        // Retrieve the card fund setup data from callers local state
+        const cardFundSetup = this.cardFundsSetup(this.txn.sender, cardFundAddr).value;
+
+        // Only a single partner channel card fund is allowed per user
+        const partnerCardFundOwnerKeyData: PartnerCardFundData = {
+            partnerChannel: cardFundSetup.partnerChannel,
+            cardFundOwner: this.txn.sender,
+        };
+        const partnerCardFundOwnerKey = sha256(rawBytes(partnerCardFundOwnerKeyData));
+        assert(!this.partnerCardFundOwner(partnerCardFundOwnerKey).exists, 'CARD_FUND_ALREADY_EXISTS');
+
+        verifyPayTxn(boxMbr, {
+            receiver: this.app.address,
+            amount: this.getCardFundBoxMbr(cardFundSetup.reference),
+        });
+
+        // Sanity check. Make sure the partner channel address is still controlled by the current application.
+        assert(cardFundAddr.authAddr === globals.currentApplicationAddress, 'INVALID_CARD_ADDRESS')
+
+        const cardFundData: CardFundData = {
+            partnerChannel: cardFundSetup.partnerChannel,
+            reference: cardFundSetup.reference,
+            owner: this.txn.sender,
+            address: cardFundAddr,
+            paymentNonce: 0,
+            withdrawalNonce: 0,
+        };
 
         // Store new card along with Card Holder
         this.cardFunds(cardFundAddr).value = cardFundData;
@@ -585,16 +711,20 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         this.CardFundCreated.log({
             cardFundOwner: this.txn.sender,
             cardFund: cardFundAddr,
-            partnerChannel: partnerChannel,
-            ref: ref
+            partnerChannel: cardFundSetup.partnerChannel,
+            reference: cardFundSetup.reference,
         });
+
+        // Delete the card fund setup data from the callers local state
+        this.cardFundsSetup(this.txn.sender, cardFundAddr).delete();
 
         // Return the new account address
         return cardFundAddr;
     }
 
     /**
-     * Close account. This permanently removes the rekey and deletes the account from the ledger
+     * Close card fund account. This permanently removes the rekey and deletes the account from the ledger
+     *
      * @param cardFund Address to close
      */
     cardFundClose(cardFund: Address): void {
@@ -614,11 +744,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
             closeRemainderTo: this.txn.sender,
         });
 
-        const cardFundSize = this.cardFunds(cardFund).size;
-        const partnerCardFundOwnerSize = this.partnerCardFundOwner(partnerCardFundOwnerKey).size;
-        const cardFunds_boxCost = 2500 + 400 * (1 + 32 + cardFundSize);
-        const partnerCardFundOwner_boxCost = 2500 + 400 * (1 + 32 + partnerCardFundOwnerSize);
-        const boxCost = cardFunds_boxCost + partnerCardFundOwner_boxCost;
+        const boxCost = this.getCardFundBoxMbr(cardFundData.reference);
 
         sendPayment({
             receiver: this.txn.sender,
@@ -1064,7 +1190,6 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         const withdrawalHash = sha256(rawBytes(withdrawal));
 
         // Need at least 2000 Opcode budget
-        // TODO: Optimise?
         while (globals.opcodeBudget < 2500) {
             increaseOpcodeBudget();
         }
