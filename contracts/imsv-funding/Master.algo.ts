@@ -42,6 +42,18 @@ type PartnerCardFundData = {
     cardFundOwner: Address;
 };
 
+type PartnerChannelCloseEventData = {
+  partnerChannel: Address;
+  partnerChannelName: string;
+}
+
+type CardFundCloseEventData = {
+  cardFundOwner: Address;
+  cardFund: Address;
+  partnerChannel: Address;
+  reference: string;
+}
+
 // Withdrawal request for an amount of an asset, where the timestamp indicates the earliest it can be made
 type PermissionlessWithdrawalRequest = {
     cardFund: Address;
@@ -118,7 +130,17 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     }>();
 
     /**
-     * Card Created event
+     * Partner Channel Closed event
+     */
+    PartnerChannelClosed = new EventLogger<{
+      /** Partner Channel */
+      partnerChannel: Address;
+      /** Partner Channel Name */
+      partnerChannelName: string;
+    }>();
+
+    /**
+     * CardFund Created event
      */
     CardFundCreated = new EventLogger<{
         /** Card Fund Owner */
@@ -130,6 +152,20 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         /** External ref */
         reference: string;
     }>();
+
+    /**
+     * CardFund Closed event
+     */
+    CardFundClosed = new EventLogger<{
+      /** Card Fund Owner */
+      cardFundOwner: Address;
+      /** Card Fund */
+      cardFund: Address;
+      /** Partner Channel */
+      partnerChannel: Address;
+      /** External ref */
+      reference: string;
+  }>();
 
     /**
      * Card Fund Asset Enabled event
@@ -556,6 +592,11 @@ export class Master extends Contract.extend(Ownable, Pausable) {
     partnerChannelClose(partnerChannel: Address): void {
         assert(this.partnerChannels(partnerChannel).exists, 'PARTNER_CHANNEL_NOT_FOUND');
         const partnerChannelData = this.partnerChannels(partnerChannel).value;
+        const partnerChannelName = partnerChannelData.partnerChannelName;
+        const eventData: PartnerChannelCloseEventData = {
+          partnerChannel: partnerChannel,
+          partnerChannelName: partnerChannelName
+        };
         // only partner channel owner can close it
         assert(partnerChannelData.owner === this.txn.sender, 'SENDER_NOT_ALLOWED');
 
@@ -578,11 +619,13 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
         // Decrement active partner channels
         this.partnerChannelsActiveCount.value = this.partnerChannelsActiveCount.value - 1;
+
+        this.PartnerChannelClosed.log(eventData);
     }
 
     /**
      * Retrieves the minimum balance requirement for creating a card fund account.
-     *
+     * @param reference client reference to store on the Card Fund.
      * @returns Minimum balance requirement for creating a card fund account
      */
     getCardFundBoxMbr(reference: string): uint64 {
@@ -731,6 +774,12 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         // only card fund owner can close it
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         const cardFundData = this.cardFunds(cardFund).value;
+        const eventData: CardFundCloseEventData = {
+          cardFundOwner: cardFundData.owner,
+          cardFund: cardFund,
+          partnerChannel: cardFundData.partnerChannel,
+          reference: cardFundData.reference
+        };
         const partnerCardFundOwnerKeyData: PartnerCardFundData = {
             partnerChannel: cardFundData.partnerChannel,
             cardFundOwner: cardFundData.owner,
@@ -759,6 +808,8 @@ export class Master extends Contract.extend(Ownable, Pausable) {
 
         // Remove the card fund from the partnerCardFundOwner index map
         this.partnerCardFundOwner(partnerCardFundOwnerKey).delete();
+
+        this.CardFundClosed.log(eventData);
     }
 
     /**
