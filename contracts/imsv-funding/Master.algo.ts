@@ -1164,7 +1164,6 @@ export class Master extends Contract.extend(Ownable, Pausable) {
         assert(this.isCardFundOwner(cardFund), 'SENDER_NOT_ALLOWED');
         assert(this.withdrawals(this.txn.sender, cardFund).exists, 'WITHDRAWAL_REQUEST_NOT_FOUND');
         const withdrawalRequest = this.withdrawals(this.txn.sender, cardFund).value;
-        this.withdrawals(this.txn.sender, cardFund).delete();
         this.WithdrawalRequestCancelled.log({
           cardFund: withdrawalRequest.cardFund,
           recipient: this.txn.sender,
@@ -1173,6 +1172,7 @@ export class Master extends Contract.extend(Ownable, Pausable) {
           createdAt: withdrawalRequest.createdAt,
           nonce: withdrawalRequest.nonce,
         });
+        this.withdrawals(this.txn.sender, cardFund).delete();
     }
 
 
